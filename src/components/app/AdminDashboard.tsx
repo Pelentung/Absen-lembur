@@ -22,10 +22,12 @@ import { Bot, Loader2, AlertTriangle, CheckCircle2, User, Image as ImageIcon, Th
 import { runPhotoValidation } from "@/lib/actions";
 import type { OvertimeRecord, ValidationResult, VerificationStatus } from "@/lib/types";
 import { Textarea } from "../ui/textarea";
+import { doc, updateDoc } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
 
 type AdminDashboardProps = {
   records: OvertimeRecord[];
-  onUpdateRecord: (updatedRecord: OvertimeRecord) => void;
+  onUpdateRecord: (updatedRecord: Partial<OvertimeRecord> & { id: string }) => void;
 };
 
 export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps) {
@@ -36,18 +38,20 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
   const [isValidating, setIsValidating] = useState(false);
   const [isVerificationDialogOpen, setIsVerificationDialogOpen] = useState(false);
   const [verificationNotes, setVerificationNotes] = useState("");
+  const { db } = useFirestore();
 
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       if (!r.checkInTime) return false;
+      const checkInDate = new Date(r.checkInTime);
       switch (filter) {
-        case "daily": return isToday(r.checkInTime);
-        case "weekly": return isThisWeek(r.checkInTime, { weekStartsOn: 1 });
-        case "monthly": return isThisMonth(r.checkInTime);
+        case "daily": return isToday(checkInDate);
+        case "weekly": return isThisWeek(checkInDate, { weekStartsOn: 1 });
+        case "monthly": return isThisMonth(checkInDate);
         default: return true;
       }
-    }).sort((a, b) => (b.checkInTime?.getTime() ?? 0) - (a.checkInTime?.getTime() ?? 0));
+    }).sort((a, b) => new Date(b.checkInTime!).getTime() - new Date(a.checkInTime!).getTime());
   }, [records, filter]);
 
   const handleValidate = async () => {
@@ -55,15 +59,16 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
 
     setIsValidating(true);
     const result = await runPhotoValidation(photoToView.url);
-    const updatedRecord = { ...selectedRecord };
+    
+    const fieldToUpdate = photoToView.type === 'checkIn' ? 'checkInValidation' : 'checkOutValidation';
 
-    if (photoToView.type === 'checkIn') {
-        updatedRecord.checkInValidation = result;
-    } else {
-        updatedRecord.checkOutValidation = result;
+    const updatedRecord = { ...selectedRecord, [fieldToUpdate]: result };
+    
+    if (db) {
+        const recordRef = doc(db, "overtimeRecords", selectedRecord.id);
+        await updateDoc(recordRef, { [fieldToUpdate]: result });
     }
     
-    onUpdateRecord(updatedRecord);
     setSelectedRecord(updatedRecord);
     setIsValidating(false);
   };
@@ -84,13 +89,13 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
   }
 
   const handleVerification = (status: VerificationStatus) => {
-    if (!selectedRecord) return;
-    const updatedRecord = { 
-      ...selectedRecord, 
+    if (!selectedRecord || !db) return;
+    const updatedData = { 
+      id: selectedRecord.id,
       verificationStatus: status,
       verificationNotes: verificationNotes
     };
-    onUpdateRecord(updatedRecord);
+    onUpdateRecord(updatedData);
     setIsVerificationDialogOpen(false);
     setSelectedRecord(null);
     setVerificationNotes("");
@@ -151,11 +156,11 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                     filteredRecords.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell className="font-medium">{record.employeeName}</TableCell>
-                        <TableCell>{record.checkInTime ? format(record.checkInTime, 'P', { locale: id }) : '-'}</TableCell>
+                        <TableCell>{record.checkInTime ? format(new Date(record.checkInTime), 'P', { locale: id }) : '-'}</TableCell>
                         <TableCell>
                           {record.checkInTime && record.checkOutTime
-                            ? formatDistanceToNow(record.checkInTime, { locale: id, includeSeconds: true }).replace('sekitar ','')
-                            : (record.checkInTime ? `${record.checkInTime.toLocaleTimeString()} - ...` : '-')}
+                            ? formatDistanceToNow(new Date(record.checkInTime), { locale: id, includeSeconds: true, addSuffix: true }).replace('sekitar ', '')
+                            : (record.checkInTime ? `${new Date(record.checkInTime).toLocaleTimeString()} - ...` : '-')}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate">{record.purpose ?? '-'}</TableCell>
                         <TableCell className="text-center">
@@ -163,7 +168,10 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                         </TableCell>
                         <TableCell className="flex gap-2 justify-center">
                           <Button variant="outline" size="sm" onClick={() => openPhotoDialog(record, 'checkIn')} disabled={!record.checkInPhoto}>
-                            Foto
+                            Foto Masuk
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => openPhotoDialog(record, 'checkOut')} disabled={!record.checkOutPhoto}>
+                            Foto Keluar
                           </Button>
                           <Button variant="default" size="sm" onClick={() => openVerificationDialog(record)} disabled={record.status !== 'Checked Out'}>
                             Tinjau
@@ -253,7 +261,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
               <div className="space-y-4 py-4">
                 <p><strong>Karyawan:</strong> {selectedRecord.employeeName}</p>
                 <p><strong>Keterangan:</strong> {selectedRecord.purpose}</p>
-                <p><strong>Durasi:</strong> {selectedRecord.checkInTime && selectedRecord.checkOutTime ? formatDistanceToNow(selectedRecord.checkInTime, { locale: id, includeSeconds: true }).replace('sekitar ','') : 'N/A'}</p>
+                <p><strong>Durasi:</strong> {selectedRecord.checkInTime && selectedRecord.checkOutTime ? formatDistanceToNow(new Date(selectedRecord.checkInTime), { locale: id, includeSeconds: true, addSuffix: true }).replace('sekitar ','') : 'N/A'}</p>
                 <Textarea 
                   placeholder="Tambahkan catatan (opsional)..."
                   value={verificationNotes}

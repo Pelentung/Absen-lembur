@@ -20,7 +20,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 type UserDashboardProps = {
   activeRecord: OvertimeRecord | null;
   historyRecords: OvertimeRecord[];
-  onCheckIn: (record: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus'>) => void;
+  onCheckIn: (record: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => void;
   onCheckOut: (record: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => void;
 };
 
@@ -177,7 +177,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     setIsPurposeDialogOpen(false);
 
     try {
-      const now = new Date();
+      const now = new Date().toISOString();
 
       if (isCheckedIn && activeRecord) {
         onCheckOut({
@@ -186,7 +186,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           checkOutPhoto: photoPreview,
           checkOutLocation: location,
         });
-        toast({ title: "Sukses Cek Out", description: `Anda berhasil cek out pada ${now.toLocaleTimeString()}` });
+        toast({ title: "Sukses Cek Out", description: `Anda berhasil cek out pada ${new Date(now).toLocaleTimeString()}` });
       } else {
         onCheckIn({
           employeeName: "Pengguna Demo",
@@ -195,7 +195,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           checkInLocation: location,
           purpose: purpose,
         });
-        toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${now.toLocaleTimeString()}` });
+        toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${new Date(now).toLocaleTimeString()}` });
       }
       resetState();
     } catch (error) {
@@ -309,36 +309,42 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       </Card>
     );
   };
+  
+  const renderHistory = () => {
+    const checkedOutRecords = historyRecords.filter(r => r.status === 'Checked Out');
+    if (checkedOutRecords.length === 0) return null;
 
-  const renderHistory = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><History className="h-6 w-6" /> Riwayat Lembur</CardTitle>
-        <CardDescription>Daftar catatan lembur Anda sebelumnya.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Accordion type="single" collapsible className="w-full">
-          {historyRecords.filter(r => r.status === 'Checked Out').map(record => (
-            <AccordionItem value={record.id} key={record.id}>
-              <AccordionTrigger>
-                <div className="flex justify-between w-full pr-4 items-center">
-                  <span>{record.checkInTime ? format(record.checkInTime, "eeee, d MMM yyyy", { locale: id }) : 'Invalid Date'}</span>
-                  {renderVerificationStatus(record.verificationStatus)}
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="space-y-2 text-sm">
-                <p><strong>Keterangan:</strong> {record.purpose}</p>
-                <p><strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? formatDistanceToNow(record.checkInTime, { locale: id, includeSeconds: true }).replace('sekitar ','') : 'N/A'}</p>
-                <p><strong>Cek In:</strong> {record.checkInTime?.toLocaleString('id-ID')}</p>
-                <p><strong>Cek Out:</strong> {record.checkOutTime?.toLocaleString('id-ID')}</p>
-                {record.verificationNotes && <p className="text-muted-foreground italic"><strong>Catatan Admin:</strong> {record.verificationNotes}</p>}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </CardContent>
-    </Card>
-  );
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><History className="h-6 w-6" /> Riwayat Lembur</CardTitle>
+          <CardDescription>Daftar catatan lembur Anda sebelumnya.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Accordion type="single" collapsible className="w-full">
+            {checkedOutRecords.map(record => (
+              <AccordionItem value={record.id} key={record.id}>
+                <AccordionTrigger>
+                  <div className="flex justify-between w-full pr-4 items-center">
+                    <span>{record.checkInTime ? format(new Date(record.checkInTime), "eeee, d MMM yyyy", { locale: id }) : 'Invalid Date'}</span>
+                    {renderVerificationStatus(record.verificationStatus)}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-2 text-sm">
+                  <p><strong>Keterangan:</strong> {record.purpose}</p>
+                  <p><strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? formatDistanceToNow(new Date(record.checkInTime), { locale: id, includeSeconds: true }).replace('sekitar ','') : 'N/A'}</p>
+                  <p><strong>Cek In:</strong> {record.checkInTime ? new Date(record.checkInTime).toLocaleString('id-ID') : '-'}</p>
+                  <p><strong>Cek Out:</strong> {record.checkOutTime ? new Date(record.checkOutTime).toLocaleString('id-ID') : '-'}</p>
+                  {record.verificationNotes && <p className="text-muted-foreground italic"><strong>Catatan Admin:</strong> {record.verificationNotes}</p>}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </CardContent>
+      </Card>
+    );
+  };
+
 
   return (
     <div className="space-y-6">
@@ -347,13 +353,13 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           <CardTitle>Status Kehadiran</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center gap-4 text-lg">
-          {isCheckedIn ? (
+          {isCheckedIn && activeRecord?.checkInTime ? (
             <>
               <Clock className="h-6 w-6 text-primary" />
               <span>
                 Sudah Cek In pada{" "}
                 <span className="font-bold text-primary">
-                  {activeRecord?.checkInTime?.toLocaleTimeString()}
+                  {new Date(activeRecord.checkInTime).toLocaleTimeString()}
                 </span>
                 {activeRecord?.purpose && (
                     <p className="text-sm text-muted-foreground">Keterangan: {activeRecord.purpose}</p>
@@ -368,7 +374,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
 
       {renderActionCard()}
 
-      {historyRecords.filter(r => r.status === 'Checked Out').length > 0 && renderHistory()}
+      {renderHistory()}
 
       <canvas ref={canvasRef} className="hidden" />
 

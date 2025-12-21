@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "OvertimeRecord": {
+      "title": "Overtime Record",
+      "description": "Represents a single overtime record for an employee.",
+      "type": "object",
+      "properties": {
+        "employeeName": {
+          "type": "string",
+          "description": "The name of the employee."
+        },
+        "checkInTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the employee checked in."
+        },
+        "checkOutTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the employee checked out."
+        },
+        "checkInPhoto": {
+          "type": "string",
+          "description": "URL of the check-in photo."
+        },
+        "checkOutPhoto": {
+          "type": "string",
+          "description": "URL of the check-out photo."
+        },
+        "checkInLocation": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "checkOutLocation": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Checked In", "Checked Out"]
+        },
+        "purpose": {
+          "type": "string",
+          "description": "The reason for the overtime."
+        },
+        "verificationStatus": {
+          "type": "string",
+          "enum": ["Pending", "Accepted", "Rejected"]
+        },
+        "verificationNotes": {
+          "type": "string",
+          "description": "Notes from the admin regarding verification."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the record was created."
+        }
+      },
+      "required": ["employeeName", "checkInTime", "checkInPhoto", "checkInLocation", "status", "verificationStatus", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": []
+  },
+  "firestore": {
+    "/overtimeRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/OvertimeRecord" },
+      "description": "Collection of all overtime records."
+    }
+  }
+}

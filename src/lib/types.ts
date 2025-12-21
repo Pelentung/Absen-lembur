@@ -1,4 +1,5 @@
 
+
 export type GeoLocation = {
   latitude: number;
   longitude: number;
@@ -14,8 +15,8 @@ export type VerificationStatus = 'Pending' | 'Accepted' | 'Rejected';
 export type OvertimeRecord = {
   id: string;
   employeeName: string;
-  checkInTime: Date | null;
-  checkOutTime: Date | null;
+  checkInTime: string | null; // Changed to string for Firestore compatibility
+  checkOutTime: string | null; // Changed to string for Firestore compatibility
   checkInPhoto: string | null;
   checkOutPhoto: string | null;
   checkInLocation: GeoLocation | null;
@@ -26,4 +27,5 @@ export type OvertimeRecord = {
   checkOutValidation?: ValidationResult | { error:string };
   verificationStatus: VerificationStatus;
   verificationNotes?: string;
+  createdAt: string; // Added for sorting
 };

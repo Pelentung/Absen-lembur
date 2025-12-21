@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow public read access to all collections for this demo app.
+    // In a real application, you should restrict this.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
