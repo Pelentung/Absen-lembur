@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'AbsenLemburKu',
-  description: 'Aplikasi pencatatan waktu lembur dengan verifikasi foto dan lokasi.',
+  title: 'ABSENSI LEMBUR',
+  description: 'Dinas Perumahan Kawasan Permukiman Cipta Karya dan Tata Ruang Kota Medan',
 };
 
 export default function RootLayout({

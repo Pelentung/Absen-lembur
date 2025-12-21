@@ -112,8 +112,8 @@ export function HomePage() {
         <header className="flex items-center gap-4 mb-8">
           <Logo className="h-10 w-10 text-primary" />
           <div>
-            <h1 className="text-3xl font-bold font-headline text-primary">AbsenLemburKu</h1>
-            <p className="text-muted-foreground">Solusi cerdas pencatatan waktu lembur.</p>
+            <h1 className="text-3xl font-bold font-headline text-primary">ABSENSI LEMBUR</h1>
+            <p className="text-muted-foreground">Dinas Perumahan Kawasan Permukiman Cipta Karya dan Tata Ruang Kota Medan</p>
           </div>
         </header>
 
