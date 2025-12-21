@@ -60,7 +60,7 @@ export function AuthPage() {
           password
         );
         const user = userCredential.user;
-        const role = email === 'admin@example.com' ? 'Admin' : 'User';
+        const role = jabatan.trim().toUpperCase() === 'PPK' ? 'Admin' : 'User';
         
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
@@ -146,7 +146,7 @@ export function AuthPage() {
               <CardDescription>
                 Buat akun baru untuk mulai menggunakan aplikasi.
               </CardDescription>
-            </CardHeader>
+            </Header>
             <CardContent className="space-y-4">
                <div className="space-y-2">
                 <Label htmlFor="register-name">Nama Lengkap</Label>
