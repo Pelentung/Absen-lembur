@@ -12,6 +12,15 @@ export type ValidationResult = {
 
 export type VerificationStatus = 'Pending' | 'Accepted' | 'Rejected';
 
+export type UserRole = 'Admin' | 'User';
+
+export type UserProfile = {
+  uid: string;
+  email: string;
+  name: string;
+  role: UserRole;
+};
+
 export type OvertimeRecord = {
   id: string;
   employeeName: string;
@@ -21,7 +30,7 @@ export type OvertimeRecord = {
   checkOutPhoto: string | null;
   checkInLocation: GeoLocation | null;
   checkOutLocation: GeoLocation | null;
-  status: 'Checked In' | 'Checked Out';
+  status: 'Checked In' | 'Checked Out' | 'Pending';
   purpose?: string; // Overtime purpose
   checkInValidation?: ValidationResult | { error: string };
   checkOutValidation?: ValidationResult | { error:string };

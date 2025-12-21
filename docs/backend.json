@@ -1,5 +1,31 @@
 {
   "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user profile information.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The user's unique ID from Firebase Auth."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["Admin", "User"],
+          "description": "The user's role in the application."
+        }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
     "OvertimeRecord": {
       "title": "Overtime Record",
       "description": "Represents a single overtime record for an employee.",
@@ -67,9 +93,13 @@
     }
   },
   "auth": {
-    "providers": []
+    "providers": ["email"]
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Collection of user profiles."
+    },
     "/overtimeRecords/{recordId}": {
       "schema": { "$ref": "#/entities/OvertimeRecord" },
       "description": "Collection of all overtime records."

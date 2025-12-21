@@ -22,9 +22,10 @@ type UserDashboardProps = {
   historyRecords: OvertimeRecord[];
   onCheckIn: (record: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => void;
   onCheckOut: (record: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => void;
+  userName: string;
 };
 
-export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheckOut }: UserDashboardProps) {
+export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheckOut, userName }: UserDashboardProps) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [location, setLocation] = useState<GeoLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -189,7 +190,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         toast({ title: "Sukses Cek Out", description: `Anda berhasil cek out pada ${new Date(now).toLocaleTimeString()}` });
       } else {
         onCheckIn({
-          employeeName: "Pengguna Demo",
+          employeeName: userName,
           checkInTime: now,
           checkInPhoto: photoPreview,
           checkInLocation: location,
