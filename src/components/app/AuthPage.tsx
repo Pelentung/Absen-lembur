@@ -28,6 +28,9 @@ export function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [nip, setNip] = useState('');
+  const [pangkat, setPangkat] = useState('');
+  const [jabatan, setJabatan] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const auth = useAuth();
   const { db } = useFirestore();
@@ -42,11 +45,11 @@ export function AuthPage() {
         toast({ title: 'Login Berhasil!' });
         router.push('/');
       } else {
-        if (!name) {
+        if (!name || !nip || !jabatan) {
           toast({
             variant: 'destructive',
-            title: 'Nama diperlukan',
-            description: 'Mohon masukkan nama lengkap Anda.',
+            title: 'Data tidak lengkap',
+            description: 'Mohon isi semua bidang yang wajib diisi.',
           });
           setIsLoading(false);
           return;
@@ -63,6 +66,9 @@ export function AuthPage() {
           uid: user.uid,
           email: user.email,
           name: name,
+          nip: nip,
+          pangkat: pangkat,
+          jabatan: jabatan,
           role: role,
         });
 
@@ -150,6 +156,38 @@ export function AuthPage() {
                   placeholder="Nama Anda"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="register-nip">NIP</Label>
+                <Input
+                  id="register-nip"
+                  type="text"
+                  placeholder="Nomor Induk Pegawai"
+                  value={nip}
+                  onChange={(e) => setNip(e.target.value)}
+                  required
+                />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="register-pangkat">Pangkat/Golongan (Opsional)</Label>
+                <Input
+                  id="register-pangkat"
+                  type="text"
+                  placeholder="Contoh: Penata Muda / IIIa"
+                  value={pangkat}
+                  onChange={(e) => setPangkat(e.target.value)}
+                />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="register-jabatan">Jabatan</Label>
+                <Input
+                  id="register-jabatan"
+                  type="text"
+                  placeholder="Jabatan Anda"
+                  value={jabatan}
+                  onChange={(e) => setJabatan(e.target.value)}
                   required
                 />
               </div>

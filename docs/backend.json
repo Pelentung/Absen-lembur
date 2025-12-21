@@ -18,13 +18,35 @@
           "type": "string",
           "description": "The user's full name."
         },
+        "nip": {
+          "type": "string",
+          "description": "The user's NIP (Nomor Induk Pegawai)."
+        },
+        "pangkat": {
+          "type": "string",
+          "description": "The user's rank or class (Pangkat/Golongan)."
+        },
+        "jabatan": {
+          "type": "string",
+          "description": "The user's position or title (Jabatan)."
+        },
         "role": {
           "type": "string",
-          "enum": ["Admin", "User"],
+          "enum": [
+            "Admin",
+            "User"
+          ],
           "description": "The user's role in the application."
         }
       },
-      "required": ["uid", "email", "name", "role"]
+      "required": [
+        "uid",
+        "email",
+        "name",
+        "nip",
+        "jabatan",
+        "role"
+      ]
     },
     "OvertimeRecord": {
       "title": "Overtime Record",
@@ -56,20 +78,31 @@
         "checkInLocation": {
           "type": "object",
           "properties": {
-            "latitude": { "type": "number" },
-            "longitude": { "type": "number" }
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            }
           }
         },
         "checkOutLocation": {
           "type": "object",
           "properties": {
-            "latitude": { "type": "number" },
-            "longitude": { "type": "number" }
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            }
           }
         },
         "status": {
           "type": "string",
-          "enum": ["Checked In", "Checked Out"]
+          "enum": [
+            "Checked In",
+            "Checked Out"
+          ]
         },
         "purpose": {
           "type": "string",
@@ -77,31 +110,49 @@
         },
         "verificationStatus": {
           "type": "string",
-          "enum": ["Pending", "Accepted", "Rejected"]
+          "enum": [
+            "Pending",
+            "Accepted",
+            "Rejected"
+          ]
         },
         "verificationNotes": {
           "type": "string",
           "description": "Notes from the admin regarding verification."
         },
         "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The timestamp when the record was created."
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the record was created."
         }
       },
-      "required": ["employeeName", "checkInTime", "checkInPhoto", "checkInLocation", "status", "verificationStatus", "createdAt"]
+      "required": [
+        "employeeName",
+        "checkInTime",
+        "checkInPhoto",
+        "checkInLocation",
+        "status",
+        "verificationStatus",
+        "createdAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["email"]
+    "providers": [
+      "email"
+    ]
   },
   "firestore": {
     "/users/{userId}": {
-      "schema": { "$ref": "#/entities/UserProfile" },
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
       "description": "Collection of user profiles."
     },
     "/overtimeRecords/{recordId}": {
-      "schema": { "$ref": "#/entities/OvertimeRecord" },
+      "schema": {
+        "$ref": "#/entities/OvertimeRecord"
+      },
       "description": "Collection of all overtime records."
     }
   }

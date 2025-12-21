@@ -18,6 +18,9 @@ export type UserProfile = {
   uid: string;
   email: string;
   name: string;
+  nip: string;
+  pangkat?: string;
+  jabatan: string;
   role: UserRole;
 };
 
