@@ -1,12 +1,13 @@
+
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Camera, MapPin, Clock, Loader2, ArrowLeft } from "lucide-react";
+import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { fileToDataUri } from "@/lib/utils";
 import type { OvertimeRecord, GeoLocation } from "@/lib/types";
 
 type UserDashboardProps = {
@@ -17,14 +18,37 @@ type UserDashboardProps = {
 
 export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashboardProps) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [location, setLocation] = useState<GeoLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [view, setView] = useState<'idle' | 'camera' | 'preview'>('idle');
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
   const isCheckedIn = activeRecord?.status === 'Checked In';
+
+  const getCameraPermission = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setHasCameraPermission(true);
+      return stream;
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      setHasCameraPermission(false);
+      toast({
+        variant: 'destructive',
+        title: 'Kamera Tidak Diizinkan',
+        description: 'Mohon izinkan akses kamera di browser Anda untuk menggunakan fitur ini.',
+      });
+      return null;
+    }
+  }, [toast]);
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -51,28 +75,67 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
     }
   }, [toast]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setPhotoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const stopCameraStream = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
     }
   };
 
-  const triggerFileSelect = () => fileInputRef.current?.click();
+  const openCamera = async () => {
+    const stream = await getCameraPermission();
+    if (stream) {
+      setView('camera');
+    }
+  };
+
+  const takeSnapshot = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+
+      if (context) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        
+        // Add timestamp
+        const now = new Date();
+        const timestamp = now.toLocaleString('id-ID', {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        });
+        
+        context.font = 'bold 24px "PT Sans"';
+        context.fillStyle = 'white';
+        context.strokeStyle = 'black';
+        context.lineWidth = 4;
+        
+        const textX = 20;
+        const textY = canvas.height - 20;
+        
+        context.strokeText(timestamp, textX, textY);
+        context.fillText(timestamp, textX, textY);
+
+        setPhotoPreview(canvas.toDataURL('image/jpeg'));
+        stopCameraStream();
+        setView('preview');
+      }
+    }
+  };
+
 
   const resetState = () => {
     setPhotoPreview(null);
-    setPhotoFile(null);
     setIsLoading(false);
+    setView('idle');
+    stopCameraStream();
   };
 
   const handleSubmit = async () => {
-    if (!photoFile || !location) {
+    if (!photoPreview || !location) {
       toast({
         variant: "destructive",
         title: "Data Tidak Lengkap",
@@ -83,14 +146,13 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
 
     setIsLoading(true);
     try {
-      const photoDataUri = await fileToDataUri(photoFile);
       const now = new Date();
 
       if (isCheckedIn && activeRecord) {
         onCheckOut({
           id: activeRecord.id,
           checkOutTime: now,
-          checkOutPhoto: photoDataUri,
+          checkOutPhoto: photoPreview,
           checkOutLocation: location,
         });
         toast({ title: "Sukses Cek Out", description: `Anda berhasil cek out pada ${now.toLocaleTimeString()}` });
@@ -98,7 +160,7 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
         onCheckIn({
           employeeName: "Pengguna Demo",
           checkInTime: now,
-          checkInPhoto: photoDataUri,
+          checkInPhoto: photoPreview,
           checkInLocation: location,
         });
         toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${now.toLocaleTimeString()}` });
@@ -111,27 +173,56 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
     }
   };
 
-  const renderActionCard = () => {
-    const title = isCheckedIn ? "Cek Out Lembur" : "Cek In Lembur";
-    const buttonText = isCheckedIn ? "Ambil Foto Cek Out" : "Ambil Foto Cek In";
-    const confirmButtonText = isCheckedIn ? "Konfirmasi Cek Out" : "Konfirmasi Cek In";
+  const renderCameraView = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setView('idle')} className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            Ambil Foto
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center gap-4">
+        <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-primary bg-black">
+          <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+        </div>
+        {hasCameraPermission === false && (
+            <Alert variant="destructive">
+                <AlertTitle>Akses Kamera Diperlukan</AlertTitle>
+                <AlertDescription>
+                    Izinkan akses kamera untuk melanjutkan. Mungkin perlu merefresh halaman.
+                </AlertDescription>
+            </Alert>
+        )}
+      </CardContent>
+      <CardFooter>
+        <Button className="w-full" onClick={takeSnapshot} disabled={hasCameraPermission !== true}>
+            <Zap className="mr-2 h-4 w-4" /> Ambil Gambar
+        </Button>
+      </CardFooter>
+    </Card>
+  );
 
-    if (photoPreview) {
-      return (
+  const renderPreview = () => {
+    const confirmButtonText = isCheckedIn ? "Konfirmasi Cek Out" : "Konfirmasi Cek In";
+    return (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={resetState} className="h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={() => setView('idle')} className="h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               Konfirmasi Foto
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
-            <div className="relative w-64 h-64 rounded-lg overflow-hidden border-2 border-primary">
-              <Image src={photoPreview} alt="Preview" layout="fill" objectFit="cover" />
-            </div>
-            <Button variant="outline" onClick={triggerFileSelect}>Ganti Foto</Button>
+            {photoPreview &&
+              <div className="relative w-64 h-64 rounded-lg overflow-hidden border-2 border-primary">
+                <Image src={photoPreview} alt="Preview" layout="fill" objectFit="cover" />
+              </div>
+            }
+            <Button variant="outline" onClick={openCamera}>Ambil Ulang Foto</Button>
           </CardContent>
           <CardFooter>
             <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleSubmit} disabled={isLoading || !location}>
@@ -140,7 +231,14 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
           </CardFooter>
         </Card>
       );
-    }
+  }
+
+  const renderActionCard = () => {
+    const title = isCheckedIn ? "Cek Out Lembur" : "Cek In Lembur";
+    const buttonText = isCheckedIn ? "Ambil Foto Cek Out" : "Ambil Foto Cek In";
+
+    if(view === 'camera') return renderCameraView();
+    if(view === 'preview') return renderPreview();
 
     return (
       <Card className="text-center">
@@ -153,7 +251,7 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button size="lg" className="w-full h-24 text-lg" onClick={triggerFileSelect}>
+          <Button size="lg" className="w-full h-24 text-lg" onClick={openCamera}>
             <Camera className="mr-4 h-8 w-8" /> {buttonText}
           </Button>
         </CardContent>
@@ -193,14 +291,9 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
 
       {renderActionCard()}
 
-      <input
-        type="file"
-        accept="image/*"
-        capture="user"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        className="hidden"
-      />
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
+
+    
