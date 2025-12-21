@@ -110,7 +110,7 @@ export function HomePage() {
     <main className="min-h-screen bg-background">
       <div className="container mx-auto p-4 md:p-8">
         <header className="flex items-center gap-4 mb-8">
-          <Logo className="h-10 w-10 text-primary" />
+          <Logo className="h-16 w-16 text-primary" />
           <div>
             <h1 className="text-3xl font-bold font-headline text-primary">ABSENSI LEMBUR</h1>
             <p className="text-muted-foreground">Dinas Perumahan Kawasan Permukiman Cipta Karya dan Tata Ruang Kota Medan</p>
