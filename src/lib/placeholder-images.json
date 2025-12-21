@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "A portrait of a person.",
+      "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjYyOTUyNTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "2",
+      "description": "A portrait of another person.",
+      "imageUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjYyOTUyNTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "3",
+      "description": "A person working at a desk.",
+      "imageUrl": "https://images.unsplash.com/photo-1560250056-07ba64664864?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwZXJzb24lMjB3b3JraW5nfGVufDB8fHx8MTc2NjIwNjE1MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person working"
+    },
+    {
+      "id": "4",
+      "description": "A person leaving an office.",
+      "imageUrl": "https://images.unsplash.com/photo-1637979911425-5041996e8b4b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGVyc29uJTIwb2ZmaWNlfGVufDB8fHx8MTc2NjMwMTU0MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person office"
+    }
+  ]
 }
