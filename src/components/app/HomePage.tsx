@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDashboard } from "./UserDashboard";
 import { AdminDashboard } from "./AdminDashboard";
@@ -22,6 +22,8 @@ const MOCK_RECORDS: OvertimeRecord[] = [
     checkOutLocation: { latitude: -6.200100, longitude: 106.816766 },
     status: 'Checked Out',
     purpose: 'Menyelesaikan presentasi untuk klien besok.',
+    verificationStatus: 'Accepted',
+    verificationNotes: 'Kerja bagus!',
   },
   {
     id: 'rec2',
@@ -34,29 +36,52 @@ const MOCK_RECORDS: OvertimeRecord[] = [
     checkOutLocation: null,
     status: 'Checked In',
     purpose: 'Mengerjakan perbaikan bug urgent.',
+    verificationStatus: 'Pending',
   },
   {
     id: 'rec3',
     employeeName: 'Agus Wijaya',
     checkInTime: new Date(new Date().setDate(now.getDate() - 1)), // Yesterday
-    checkOutTime: new Date(new Date(new Date().setDate(now.getDate() - 1)).getTime() + 8 * 60 * 60 * 1000), // Yesterday + 8 hours
+    checkOutTime: new Date(new Date(new Date().setDate(now.getDate() - 1)).getTime() + 3 * 60 * 60 * 1000), // Yesterday + 3 hours
     checkInPhoto: PlaceHolderImages.find(p => p.id === '4')?.imageUrl ?? null,
     checkOutPhoto: PlaceHolderImages.find(p => p.id === '1')?.imageUrl ?? null,
     checkInLocation: { latitude: -6.220000, longitude: 106.836666 },
     checkOutLocation: { latitude: -6.220100, longitude: 106.836766 },
     status: 'Checked Out',
     purpose: 'Rapat koordinasi proyek baru.',
+    verificationStatus: 'Rejected',
+    verificationNotes: 'Durasi tidak sesuai dengan laporan.',
+  },
+  {
+    id: 'rec4',
+    employeeName: 'Pengguna Demo',
+    checkInTime: new Date(new Date().setDate(now.getDate() - 2)),
+    checkOutTime: new Date(new Date(new Date().setDate(now.getDate() - 2)).getTime() + 2 * 60 * 60 * 1000),
+    checkInPhoto: PlaceHolderImages.find(p => p.id === '2')?.imageUrl ?? null,
+    checkOutPhoto: PlaceHolderImages.find(p => p.id === '3')?.imageUrl ?? null,
+    checkInLocation: { latitude: -6.220000, longitude: 106.836666 },
+    checkOutLocation: { latitude: -6.220100, longitude: 106.836766 },
+    status: 'Checked Out',
+    purpose: 'Lembur wajib mingguan.',
+    verificationStatus: 'Pending',
   },
 ];
 
 
 export function HomePage() {
   const [records, setRecords] = useState<OvertimeRecord[]>(MOCK_RECORDS);
-  const [activeUserRecord, setActiveUserRecord] = useState<OvertimeRecord | null>(
-    MOCK_RECORDS.find(r => r.employeeName === "Pengguna Demo" && r.status === "Checked In") ?? null
+
+  const activeUserRecord = useMemo(() => 
+    records.find(r => r.employeeName === "Pengguna Demo" && r.status === "Checked In") ?? null, 
+    [records]
+  );
+  
+  const userHistory = useMemo(() =>
+    records.filter(r => r.employeeName === "Pengguna Demo").sort((a, b) => (b.checkInTime?.getTime() ?? 0) - (a.checkInTime?.getTime() ?? 0)),
+    [records]
   );
 
-  const handleCheckIn = useCallback((newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
+  const handleCheckIn = useCallback((newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus'>) => {
     const newRecord: OvertimeRecord = {
       ...newRecordData,
       id: `rec-${Date.now()}`,
@@ -64,9 +89,9 @@ export function HomePage() {
       checkOutTime: null,
       checkOutPhoto: null,
       checkOutLocation: null,
+      verificationStatus: 'Pending',
     };
     setRecords(prev => [newRecord, ...prev]);
-    setActiveUserRecord(newRecord);
   }, []);
 
   const handleCheckOut = useCallback(({ id, checkOutTime, checkOutPhoto, checkOutLocation }: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
@@ -75,7 +100,6 @@ export function HomePage() {
         ? { ...r, status: 'Checked Out', checkOutTime, checkOutPhoto, checkOutLocation }
         : r
     ));
-    setActiveUserRecord(null);
   }, []);
 
   const handleUpdateRecord = useCallback((updatedRecord: OvertimeRecord) => {
@@ -101,6 +125,7 @@ export function HomePage() {
           <TabsContent value="user" className="mt-6">
             <UserDashboard 
               activeRecord={activeUserRecord}
+              historyRecords={userHistory}
               onCheckIn={handleCheckIn}
               onCheckOut={handleCheckOut}
             />

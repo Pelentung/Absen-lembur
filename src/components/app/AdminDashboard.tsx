@@ -18,9 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Loader2, AlertTriangle, CheckCircle2, User, Image as ImageIcon } from "lucide-react";
+import { Bot, Loader2, AlertTriangle, CheckCircle2, User, Image as ImageIcon, ThumbsUp, ThumbsDown } from "lucide-react";
 import { runPhotoValidation } from "@/lib/actions";
-import type { OvertimeRecord, ValidationResult } from "@/lib/types";
+import type { OvertimeRecord, ValidationResult, VerificationStatus } from "@/lib/types";
+import { Textarea } from "../ui/textarea";
 
 type AdminDashboardProps = {
   records: OvertimeRecord[];
@@ -33,6 +34,9 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [photoToView, setPhotoToView] = useState<{ url: string; type: 'checkIn' | 'checkOut' } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [isVerificationDialogOpen, setIsVerificationDialogOpen] = useState(false);
+  const [verificationNotes, setVerificationNotes] = useState("");
+
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
@@ -64,7 +68,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
     setIsValidating(false);
   };
   
-  const openDialog = (record: OvertimeRecord, photoType: 'checkIn' | 'checkOut') => {
+  const openPhotoDialog = (record: OvertimeRecord, photoType: 'checkIn' | 'checkOut') => {
     const photoUrl = photoType === 'checkIn' ? record.checkInPhoto : record.checkOutPhoto;
     if (photoUrl) {
       setSelectedRecord(record);
@@ -72,6 +76,26 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
       setIsDialogOpen(true);
     }
   };
+
+  const openVerificationDialog = (record: OvertimeRecord) => {
+    setSelectedRecord(record);
+    setVerificationNotes(record.verificationNotes || "");
+    setIsVerificationDialogOpen(true);
+  }
+
+  const handleVerification = (status: VerificationStatus) => {
+    if (!selectedRecord) return;
+    const updatedRecord = { 
+      ...selectedRecord, 
+      verificationStatus: status,
+      verificationNotes: verificationNotes
+    };
+    onUpdateRecord(updatedRecord);
+    setIsVerificationDialogOpen(false);
+    setSelectedRecord(null);
+    setVerificationNotes("");
+  }
+
 
   const renderValidationStatus = (validation?: ValidationResult | { error: string }) => {
     if (!validation) return <Badge variant="secondary">Belum Dicek</Badge>;
@@ -82,12 +106,24 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
     return <Badge variant="destructive">{`✕ Bukan Orang (${(validation.confidence * 100).toFixed(0)}%)`}</Badge>;
   }
 
+  const renderVerificationBadge = (status: VerificationStatus) => {
+    switch (status) {
+      case 'Accepted':
+        return <Badge className="bg-green-600 text-white hover:bg-green-700">Diterima</Badge>;
+      case 'Rejected':
+        return <Badge variant="destructive">Ditolak</Badge>;
+      case 'Pending':
+      default:
+        return <Badge variant="secondary">Pending</Badge>;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Laporan Lembur Karyawan</CardTitle>
         <CardDescription>
-          Tinjau dan validasi data lembur yang telah dicatat oleh sistem.
+          Tinjau, validasi foto, dan verifikasi data lembur yang tercatat.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -104,10 +140,10 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                   <TableRow>
                     <TableHead>Karyawan</TableHead>
                     <TableHead>Tanggal</TableHead>
-                    <TableHead>Waktu</TableHead>
-                    <TableHead>Tujuan</TableHead>
                     <TableHead>Durasi</TableHead>
-                    <TableHead className="text-center">Foto</TableHead>
+                    <TableHead>Tujuan</TableHead>
+                    <TableHead className="text-center">Verifikasi</TableHead>
+                    <TableHead className="text-center">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -117,20 +153,20 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                         <TableCell className="font-medium">{record.employeeName}</TableCell>
                         <TableCell>{record.checkInTime ? format(record.checkInTime, 'P', { locale: id }) : '-'}</TableCell>
                         <TableCell>
-                          {record.checkInTime?.toLocaleTimeString() ?? '-'} - {record.checkOutTime?.toLocaleTimeString() ?? '...'}
+                          {record.checkInTime && record.checkOutTime
+                            ? formatDistanceToNow(record.checkInTime, { locale: id, includeSeconds: true }).replace('sekitar ','')
+                            : (record.checkInTime ? `${record.checkInTime.toLocaleTimeString()} - ...` : '-')}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate">{record.purpose ?? '-'}</TableCell>
-                        <TableCell>
-                          {record.checkInTime && record.checkOutTime
-                            ? formatDistanceToNow(record.checkInTime, { addSuffix: false, locale: id, includeSeconds: true }).replace('sekitar ','')
-                            : (record.checkInTime ? 'Berlangsung' : '-')}
+                        <TableCell className="text-center">
+                          {renderVerificationBadge(record.verificationStatus)}
                         </TableCell>
                         <TableCell className="flex gap-2 justify-center">
-                          <Button variant="outline" size="sm" onClick={() => openDialog(record, 'checkIn')} disabled={!record.checkInPhoto}>
-                            Cek In
+                          <Button variant="outline" size="sm" onClick={() => openPhotoDialog(record, 'checkIn')} disabled={!record.checkInPhoto}>
+                            Foto
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => openDialog(record, 'checkOut')} disabled={!record.checkOutPhoto}>
-                            Cek Out
+                          <Button variant="default" size="sm" onClick={() => openVerificationDialog(record)} disabled={record.status !== 'Checked Out'}>
+                            Tinjau
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -148,6 +184,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
           </TabsContent>
         </Tabs>
 
+        {/* Photo Validation Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
@@ -199,6 +236,38 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
             </div>
             <DialogFooter>
                 <Button variant="secondary" onClick={() => setIsDialogOpen(false)}>Tutup</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Overtime Verification Dialog */}
+        <Dialog open={isVerificationDialogOpen} onOpenChange={setIsVerificationDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verifikasi Lembur</DialogTitle>
+              <DialogDescription>
+                Tinjau detail lembur dan berikan persetujuan atau penolakan.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedRecord && (
+              <div className="space-y-4 py-4">
+                <p><strong>Karyawan:</strong> {selectedRecord.employeeName}</p>
+                <p><strong>Tujuan:</strong> {selectedRecord.purpose}</p>
+                <p><strong>Durasi:</strong> {selectedRecord.checkInTime && selectedRecord.checkOutTime ? formatDistanceToNow(selectedRecord.checkInTime, { locale: id, includeSeconds: true }).replace('sekitar ','') : 'N/A'}</p>
+                <Textarea 
+                  placeholder="Tambahkan catatan (opsional)..."
+                  value={verificationNotes}
+                  onChange={(e) => setVerificationNotes(e.target.value)}
+                />
+              </div>
+            )}
+            <DialogFooter className="gap-2">
+              <Button variant="destructive" onClick={() => handleVerification('Rejected')}>
+                <ThumbsDown className="mr-2 h-4 w-4" /> Tolak
+              </Button>
+              <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleVerification('Accepted')}>
+                <ThumbsUp className="mr-2 h-4 w-4" /> Terima
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

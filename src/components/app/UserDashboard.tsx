@@ -3,7 +3,9 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { id } from "date-fns/locale";
+import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap, ThumbsUp, ThumbsDown, Hourglass, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,15 +13,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import type { OvertimeRecord, GeoLocation } from "@/lib/types";
+import type { OvertimeRecord, GeoLocation, VerificationStatus } from "@/lib/types";
+import { Badge } from "../ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
 
 type UserDashboardProps = {
   activeRecord: OvertimeRecord | null;
-  onCheckIn: (record: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => void;
+  historyRecords: OvertimeRecord[];
+  onCheckIn: (record: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus'>) => void;
   onCheckOut: (record: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => void;
 };
 
-export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashboardProps) {
+export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheckOut }: UserDashboardProps) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [location, setLocation] = useState<GeoLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -142,10 +147,8 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
 
   const handleConfirm = () => {
     if (isCheckedIn) {
-      // For check-out, we don't need a purpose, so submit directly
       handleSubmit();
     } else {
-      // For check-in, open the purpose dialog
       setIsPurposeDialogOpen(true);
     }
   };
@@ -160,14 +163,13 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
       return;
     }
     
-    // For check-in, purpose is required.
     if (!isCheckedIn && !purpose) {
         toast({
           variant: "destructive",
           title: "Tujuan Lembur Diperlukan",
           description: "Mohon isi tujuan lembur Anda.",
         });
-        setIsPurposeDialogOpen(true); // Re-open dialog if closed without reason
+        setIsPurposeDialogOpen(true);
         return;
     }
 
@@ -200,6 +202,18 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
       console.error("Submit error:", error);
       toast({ variant: "destructive", title: "Terjadi Kesalahan", description: "Gagal menyimpan data." });
       setIsLoading(false);
+    }
+  };
+
+  const renderVerificationStatus = (status: VerificationStatus) => {
+    switch (status) {
+      case 'Accepted':
+        return <Badge className="bg-green-600 hover:bg-green-700"><ThumbsUp className="mr-1 h-3 w-3" /> Diterima</Badge>;
+      case 'Rejected':
+        return <Badge variant="destructive"><ThumbsDown className="mr-1 h-3 w-3" /> Ditolak</Badge>;
+      case 'Pending':
+      default:
+        return <Badge variant="secondary"><Hourglass className="mr-1 h-3 w-3" /> Pending</Badge>;
     }
   };
 
@@ -296,6 +310,36 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
     );
   };
 
+  const renderHistory = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><History className="h-6 w-6" /> Riwayat Lembur</CardTitle>
+        <CardDescription>Daftar catatan lembur Anda sebelumnya.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Accordion type="single" collapsible className="w-full">
+          {historyRecords.filter(r => r.status === 'Checked Out').map(record => (
+            <AccordionItem value={record.id} key={record.id}>
+              <AccordionTrigger>
+                <div className="flex justify-between w-full pr-4 items-center">
+                  <span>{record.checkInTime ? format(record.checkInTime, "eeee, d MMM yyyy", { locale: id }) : 'Invalid Date'}</span>
+                  {renderVerificationStatus(record.verificationStatus)}
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-2 text-sm">
+                <p><strong>Tujuan:</strong> {record.purpose}</p>
+                <p><strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? formatDistanceToNow(record.checkInTime, { locale: id, includeSeconds: true }).replace('sekitar ','') : 'N/A'}</p>
+                <p><strong>Cek In:</strong> {record.checkInTime?.toLocaleString('id-ID')}</p>
+                <p><strong>Cek Out:</strong> {record.checkOutTime?.toLocaleString('id-ID')}</p>
+                {record.verificationNotes && <p className="text-muted-foreground italic"><strong>Catatan Admin:</strong> {record.verificationNotes}</p>}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
       <Card>
@@ -323,6 +367,8 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
       </Card>
 
       {renderActionCard()}
+
+      {historyRecords.filter(r => r.status === 'Checked Out').length > 0 && renderHistory()}
 
       <canvas ref={canvasRef} className="hidden" />
 

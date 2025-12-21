@@ -9,6 +9,8 @@ export type ValidationResult = {
   confidence: number;
 };
 
+export type VerificationStatus = 'Pending' | 'Accepted' | 'Rejected';
+
 export type OvertimeRecord = {
   id: string;
   employeeName: string;
@@ -22,4 +24,6 @@ export type OvertimeRecord = {
   purpose?: string; // Overtime purpose
   checkInValidation?: ValidationResult | { error: string };
   checkOutValidation?: ValidationResult | { error:string };
+  verificationStatus: VerificationStatus;
+  verificationNotes?: string;
 };
