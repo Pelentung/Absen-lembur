@@ -146,7 +146,7 @@ export function AuthPage() {
               <CardDescription>
                 Buat akun baru untuk mulai menggunakan aplikasi.
               </CardDescription>
-            </Header>
+            </CardHeader>
             <CardContent className="space-y-4">
                <div className="space-y-2">
                 <Label htmlFor="register-name">Nama Lengkap</Label>
