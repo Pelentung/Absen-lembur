@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback } from "react";
@@ -20,6 +21,7 @@ const MOCK_RECORDS: OvertimeRecord[] = [
     checkInLocation: { latitude: -6.200000, longitude: 106.816666 },
     checkOutLocation: { latitude: -6.200100, longitude: 106.816766 },
     status: 'Checked Out',
+    purpose: 'Menyelesaikan presentasi untuk klien besok.',
   },
   {
     id: 'rec2',
@@ -31,6 +33,7 @@ const MOCK_RECORDS: OvertimeRecord[] = [
     checkInLocation: { latitude: -6.210000, longitude: 106.826666 },
     checkOutLocation: null,
     status: 'Checked In',
+    purpose: 'Mengerjakan perbaikan bug urgent.',
   },
   {
     id: 'rec3',
@@ -42,6 +45,7 @@ const MOCK_RECORDS: OvertimeRecord[] = [
     checkInLocation: { latitude: -6.220000, longitude: 106.836666 },
     checkOutLocation: { latitude: -6.220100, longitude: 106.836766 },
     status: 'Checked Out',
+    purpose: 'Rapat koordinasi proyek baru.',
   },
 ];
 

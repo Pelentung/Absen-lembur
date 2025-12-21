@@ -1,3 +1,4 @@
+
 export type GeoLocation = {
   latitude: number;
   longitude: number;
@@ -18,6 +19,7 @@ export type OvertimeRecord = {
   checkInLocation: GeoLocation | null;
   checkOutLocation: GeoLocation | null;
   status: 'Checked In' | 'Checked Out';
+  purpose?: string; // Overtime purpose
   checkInValidation?: ValidationResult | { error: string };
   checkOutValidation?: ValidationResult | { error:string };
 };

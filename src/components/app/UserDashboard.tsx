@@ -7,6 +7,9 @@ import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { OvertimeRecord, GeoLocation } from "@/lib/types";
 
@@ -23,6 +26,8 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
   const [locationError, setLocationError] = useState<string | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [view, setView] = useState<'idle' | 'camera' | 'preview'>('idle');
+  const [isPurposeDialogOpen, setIsPurposeDialogOpen] = useState(false);
+  const [purpose, setPurpose] = useState("");
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -101,7 +106,6 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
         
-        // Add timestamp
         const now = new Date();
         const timestamp = now.toLocaleString('id-ID', {
             year: 'numeric', month: 'short', day: 'numeric',
@@ -131,7 +135,19 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
     setPhotoPreview(null);
     setIsLoading(false);
     setView('idle');
+    setPurpose("");
+    setIsPurposeDialogOpen(false);
     stopCameraStream();
+  };
+
+  const handleConfirm = () => {
+    if (isCheckedIn) {
+      // For check-out, we don't need a purpose, so submit directly
+      handleSubmit();
+    } else {
+      // For check-in, open the purpose dialog
+      setIsPurposeDialogOpen(true);
+    }
   };
 
   const handleSubmit = async () => {
@@ -143,8 +159,21 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
       });
       return;
     }
+    
+    // For check-in, purpose is required.
+    if (!isCheckedIn && !purpose) {
+        toast({
+          variant: "destructive",
+          title: "Tujuan Lembur Diperlukan",
+          description: "Mohon isi tujuan lembur Anda.",
+        });
+        setIsPurposeDialogOpen(true); // Re-open dialog if closed without reason
+        return;
+    }
 
     setIsLoading(true);
+    setIsPurposeDialogOpen(false);
+
     try {
       const now = new Date();
 
@@ -162,6 +191,7 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
           checkInTime: now,
           checkInPhoto: photoPreview,
           checkInLocation: location,
+          purpose: purpose,
         });
         toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${now.toLocaleTimeString()}` });
       }
@@ -225,7 +255,7 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
             <Button variant="outline" onClick={openCamera}>Ambil Ulang Foto</Button>
           </CardContent>
           <CardFooter>
-            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleSubmit} disabled={isLoading || !location}>
+            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirm} disabled={isLoading || !location}>
               {isLoading ? <Loader2 className="animate-spin" /> : confirmButtonText}
             </Button>
           </CardFooter>
@@ -281,6 +311,9 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
                 <span className="font-bold text-primary">
                   {activeRecord?.checkInTime?.toLocaleTimeString()}
                 </span>
+                {activeRecord?.purpose && (
+                    <p className="text-sm text-muted-foreground">Tujuan: {activeRecord.purpose}</p>
+                )}
               </span>
             </>
           ) : (
@@ -292,8 +325,36 @@ export function UserDashboard({ activeRecord, onCheckIn, onCheckOut }: UserDashb
       {renderActionCard()}
 
       <canvas ref={canvasRef} className="hidden" />
+
+      <Dialog open={isPurposeDialogOpen} onOpenChange={setIsPurposeDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Tujuan Lembur</DialogTitle>
+            <DialogDescription>
+              Mohon isi tujuan Anda melakukan lembur hari ini.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="purpose" className="text-right">
+                Tujuan
+              </Label>
+              <Textarea
+                id="purpose"
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                className="col-span-3"
+                placeholder="Contoh: Menyelesaikan laporan bulanan"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSubmit} disabled={isLoading || !purpose}>
+              {isLoading ? <Loader2 className="animate-spin" /> : "Kirim & Cek In"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-    

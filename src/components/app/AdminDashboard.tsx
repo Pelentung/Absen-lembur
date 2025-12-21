@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -104,6 +105,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                     <TableHead>Karyawan</TableHead>
                     <TableHead>Tanggal</TableHead>
                     <TableHead>Waktu</TableHead>
+                    <TableHead>Tujuan</TableHead>
                     <TableHead>Durasi</TableHead>
                     <TableHead className="text-center">Foto</TableHead>
                   </TableRow>
@@ -117,6 +119,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                         <TableCell>
                           {record.checkInTime?.toLocaleTimeString() ?? '-'} - {record.checkOutTime?.toLocaleTimeString() ?? '...'}
                         </TableCell>
+                        <TableCell className="max-w-[200px] truncate">{record.purpose ?? '-'}</TableCell>
                         <TableCell>
                           {record.checkInTime && record.checkOutTime
                             ? formatDistanceToNow(record.checkInTime, { addSuffix: false, locale: id, includeSeconds: true }).replace('sekitar ','')
@@ -134,7 +137,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         Tidak ada data untuk periode ini.
                       </TableCell>
                     </TableRow>
@@ -151,6 +154,12 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
               <DialogTitle>Validasi Foto {photoToView?.type === 'checkIn' ? 'Cek In' : 'Cek Out'}</DialogTitle>
               <DialogDescription>
                 Gunakan AI untuk memvalidasi bahwa foto ini adalah foto orang.
+                {selectedRecord?.purpose && photoToView?.type === 'checkIn' && (
+                    <div className="pt-4">
+                        <p className="font-semibold">Tujuan Lembur:</p>
+                        <p className="text-sm text-muted-foreground">{selectedRecord.purpose}</p>
+                    </div>
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
