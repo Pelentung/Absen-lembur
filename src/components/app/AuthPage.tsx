@@ -60,7 +60,8 @@ export function AuthPage() {
           password
         );
         const user = userCredential.user;
-        const role = jabatan.trim().toUpperCase() === 'PPK' ? 'Admin' : 'User';
+        const normalizedJabatan = jabatan.trim().toUpperCase();
+        const role = normalizedJabatan === 'PPK' || normalizedJabatan === 'KASUBBAG UMUM' ? 'Admin' : 'User';
         
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
