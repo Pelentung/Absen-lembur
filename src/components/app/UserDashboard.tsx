@@ -166,8 +166,8 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     if (!isCheckedIn && !purpose) {
         toast({
           variant: "destructive",
-          title: "Tujuan Lembur Diperlukan",
-          description: "Mohon isi tujuan lembur Anda.",
+          title: "Keterangan Lembur Diperlukan",
+          description: "Mohon isi keterangan lembur Anda.",
         });
         setIsPurposeDialogOpen(true);
         return;
@@ -327,7 +327,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-2 text-sm">
-                <p><strong>Tujuan:</strong> {record.purpose}</p>
+                <p><strong>Keterangan:</strong> {record.purpose}</p>
                 <p><strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? formatDistanceToNow(record.checkInTime, { locale: id, includeSeconds: true }).replace('sekitar ','') : 'N/A'}</p>
                 <p><strong>Cek In:</strong> {record.checkInTime?.toLocaleString('id-ID')}</p>
                 <p><strong>Cek Out:</strong> {record.checkOutTime?.toLocaleString('id-ID')}</p>
@@ -356,7 +356,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                   {activeRecord?.checkInTime?.toLocaleTimeString()}
                 </span>
                 {activeRecord?.purpose && (
-                    <p className="text-sm text-muted-foreground">Tujuan: {activeRecord.purpose}</p>
+                    <p className="text-sm text-muted-foreground">Keterangan: {activeRecord.purpose}</p>
                 )}
               </span>
             </>
@@ -375,15 +375,15 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       <Dialog open={isPurposeDialogOpen} onOpenChange={setIsPurposeDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Tujuan Lembur</DialogTitle>
+            <DialogTitle>Keterangan Lembur</DialogTitle>
             <DialogDescription>
-              Mohon isi tujuan Anda melakukan lembur hari ini.
+              Mohon isi keterangan Anda melakukan lembur hari ini.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="purpose" className="text-right">
-                Tujuan
+                Keterangan
               </Label>
               <Textarea
                 id="purpose"

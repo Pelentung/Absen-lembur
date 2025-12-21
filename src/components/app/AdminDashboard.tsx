@@ -141,7 +141,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                     <TableHead>Karyawan</TableHead>
                     <TableHead>Tanggal</TableHead>
                     <TableHead>Durasi</TableHead>
-                    <TableHead>Tujuan</TableHead>
+                    <TableHead>Keterangan</TableHead>
                     <TableHead className="text-center">Verifikasi</TableHead>
                     <TableHead className="text-center">Aksi</TableHead>
                   </TableRow>
@@ -193,7 +193,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                 Gunakan AI untuk memvalidasi bahwa foto ini adalah foto orang.
                 {selectedRecord?.purpose && photoToView?.type === 'checkIn' && (
                     <div className="pt-4">
-                        <p className="font-semibold">Tujuan Lembur:</p>
+                        <p className="font-semibold">Keterangan Lembur:</p>
                         <p className="text-sm text-muted-foreground">{selectedRecord.purpose}</p>
                     </div>
                 )}
@@ -252,7 +252,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
             {selectedRecord && (
               <div className="space-y-4 py-4">
                 <p><strong>Karyawan:</strong> {selectedRecord.employeeName}</p>
-                <p><strong>Tujuan:</strong> {selectedRecord.purpose}</p>
+                <p><strong>Keterangan:</strong> {selectedRecord.purpose}</p>
                 <p><strong>Durasi:</strong> {selectedRecord.checkInTime && selectedRecord.checkOutTime ? formatDistanceToNow(selectedRecord.checkInTime, { locale: id, includeSeconds: true }).replace('sekitar ','') : 'N/A'}</p>
                 <Textarea 
                   placeholder="Tambahkan catatan (opsional)..."
