@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { OvertimeRecord, GeoLocation, VerificationStatus } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
+import { fileToDataUri } from "@/lib/utils";
 
 type UserDashboardProps = {
   activeRecord: OvertimeRecord | null;
@@ -30,36 +31,14 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   const [location, setLocation] = useState<GeoLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [view, setView] = useState<'idle' | 'camera' | 'preview'>('idle');
+  const [view, setView] = useState<'idle' | 'preview'>('idle');
   const [isPurposeDialogOpen, setIsPurposeDialogOpen] = useState(false);
   const [purpose, setPurpose] = useState("");
   
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const isCheckedIn = activeRecord?.status === 'Checked In';
-
-  const getCameraPermission = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setHasCameraPermission(true);
-      return stream;
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      setHasCameraPermission(false);
-      toast({
-        variant: 'destructive',
-        title: 'Kamera Tidak Diizinkan',
-        description: 'Mohon izinkan akses kamera di browser Anda untuk menggunakan fitur ini.',
-      });
-      return null;
-    }
-  }, [toast]);
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -86,52 +65,19 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     }
   }, [toast]);
 
-  const stopCameraStream = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-  };
-
-  const openCamera = async () => {
-    const stream = await getCameraPermission();
-    if (stream) {
-      setView('camera');
-    }
-  };
-
-  const takeSnapshot = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-
-      if (context) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        
-        const now = new Date();
-        const timestamp = now.toLocaleString('id-ID', {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-        });
-        
-        context.font = 'bold 24px "PT Sans"';
-        context.fillStyle = 'white';
-        context.strokeStyle = 'black';
-        context.lineWidth = 4;
-        
-        const textX = 20;
-        const textY = canvas.height - 20;
-        
-        context.strokeText(timestamp, textX, textY);
-        context.fillText(timestamp, textX, textY);
-
-        setPhotoPreview(canvas.toDataURL('image/jpeg'));
-        stopCameraStream();
+  const handlePhotoTaken = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        const dataUri = await fileToDataUri(file);
+        setPhotoPreview(dataUri);
         setView('preview');
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Gagal Membaca Foto",
+          description: "Terjadi kesalahan saat memproses gambar yang Anda pilih."
+        });
       }
     }
   };
@@ -143,7 +89,9 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     setView('idle');
     setPurpose("");
     setIsPurposeDialogOpen(false);
-    stopCameraStream();
+    if(fileInputRef.current) {
+        fileInputRef.current.value = "";
+    }
   };
 
   const handleConfirm = () => {
@@ -218,44 +166,13 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     }
   };
 
-  const renderCameraView = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => { setView('idle'); stopCameraStream(); }} className="h-8 w-8">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            Ambil Foto
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col items-center gap-4">
-        <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-primary bg-black">
-          <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-        </div>
-        {hasCameraPermission === false && (
-            <Alert variant="destructive">
-                <AlertTitle>Akses Kamera Diperlukan</AlertTitle>
-                <AlertDescription>
-                    Izinkan akses kamera untuk melanjutkan. Mungkin perlu merefresh halaman.
-                </AlertDescription>
-            </Alert>
-        )}
-      </CardContent>
-      <CardFooter>
-        <Button className="w-full" onClick={takeSnapshot} disabled={hasCameraPermission !== true}>
-            <Zap className="mr-2 h-4 w-4" /> Ambil Gambar
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-
   const renderPreview = () => {
     const confirmButtonText = isCheckedIn ? "Konfirmasi Cek Out" : "Konfirmasi Cek In";
     return (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => { setView('idle'); stopCameraStream(); }} className="h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={() => { setView('idle'); setPhotoPreview(null) }} className="h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               Konfirmasi Foto
@@ -267,7 +184,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                 <Image src={photoPreview} alt="Preview" layout="fill" objectFit="cover" />
               </div>
             }
-            <Button variant="outline" onClick={openCamera}>Ambil Ulang Foto</Button>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Ambil Ulang Foto</Button>
           </CardContent>
           <CardFooter>
             <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirm} disabled={isLoading || !location}>
@@ -282,7 +199,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     const title = isCheckedIn ? "Cek Out Lembur" : "Cek In Lembur";
     const buttonText = isCheckedIn ? "Ambil Foto Cek Out" : "Ambil Foto Cek In";
 
-    if(view === 'camera') return renderCameraView();
     if(view === 'preview') return renderPreview();
 
     return (
@@ -296,7 +212,15 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button size="lg" className="w-full h-24 text-lg" onClick={openCamera}>
+            <input
+                type="file"
+                accept="image/*"
+                capture="user"
+                ref={fileInputRef}
+                onChange={handlePhotoTaken}
+                className="hidden"
+              />
+          <Button size="lg" className="w-full h-24 text-lg" onClick={() => fileInputRef.current?.click()}>
             <Camera className="mr-4 h-8 w-8" /> {buttonText}
           </Button>
         </CardContent>
@@ -376,8 +300,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       {renderActionCard()}
 
       {renderHistory()}
-
-      <canvas ref={canvasRef} className="hidden" />
 
       <Dialog open={isPurposeDialogOpen} onOpenChange={setIsPurposeDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
