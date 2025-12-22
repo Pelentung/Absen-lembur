@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDashboard } from "./UserDashboard";
 import { ManageUsers } from "./ManageUsers";
+import { ManageOvertime } from "./ManageOvertime";
 import { Logo } from "./Logo";
-import type { OvertimeRecord, UserRole, UserProfile } from "@/lib/types";
+import type { OvertimeRecord, UserRole, UserProfile, VerificationStatus } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
@@ -37,8 +38,7 @@ export function HomePage({ userRole }: HomePageProps) {
     return query(collection(db, 'users'));
   }, [db, userRole]);
 
-  const { data: records = [] } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: userRole === 'Admin' });
-  
+  const { data: records = [] } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: true });
   const { data: users = [] } = useCollection<UserProfile>(usersQuery);
 
 
@@ -142,6 +142,15 @@ export function HomePage({ userRole }: HomePageProps) {
     const userRef = doc(db, 'users', userId);
     await deleteDoc(userRef);
   }, [db]);
+  
+  const handleUpdateOvertimeStatus = useCallback(async (recordId: string, status: VerificationStatus, notes?: string) => {
+    if (!db) return;
+    const recordRef = doc(db, 'overtimeRecords', recordId);
+    await updateDoc(recordRef, {
+        verificationStatus: status,
+        verificationNotes: notes || ""
+    });
+  }, [db]);
 
 
   const handleLogout = async () => {
@@ -151,7 +160,7 @@ export function HomePage({ userRole }: HomePageProps) {
     router.push('/login');
   };
 
-  const defaultTab = userRole === 'Admin' ? 'admin-users' : 'user';
+  const defaultTab = userRole === 'Admin' ? 'admin-overtime' : 'user';
 
   return (
     <main className="min-h-screen bg-background">
@@ -172,8 +181,9 @@ export function HomePage({ userRole }: HomePageProps) {
 
         <Tabs defaultValue={defaultTab} className="w-full">
           {userRole === 'Admin' ? (
-            <TabsList className="grid w-full grid-cols-2 md:w-[320px]">
-              <TabsTrigger value="user">Absensi</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 md:w-[480px]">
+              <TabsTrigger value="user">Absensi Pribadi</TabsTrigger>
+              <TabsTrigger value="admin-overtime">Kelola Absensi</TabsTrigger>
               <TabsTrigger value="admin-users">Kelola Pengguna</TabsTrigger>
             </TabsList>
           ) : (
@@ -191,6 +201,12 @@ export function HomePage({ userRole }: HomePageProps) {
           </TabsContent>
           {userRole === 'Admin' && (
             <>
+               <TabsContent value="admin-overtime" className="mt-6">
+                <ManageOvertime 
+                  records={sortedRecords}
+                  onUpdateStatus={handleUpdateOvertimeStatus}
+                />
+              </TabsContent>
               <TabsContent value="admin-users" className="mt-6">
                 <ManageUsers 
                   users={users ?? []}
