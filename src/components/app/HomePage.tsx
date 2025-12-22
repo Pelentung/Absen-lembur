@@ -9,7 +9,7 @@ import { AdminDashboard } from "./AdminDashboard";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -47,23 +47,27 @@ export function HomePage({ userRole }: HomePageProps) {
     [sortedRecords, userName]
   );
 
-  const uploadPhoto = async (photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut'): Promise<string> => {
+  const uploadPhotoAndUpdateRecord = async (photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut') => {
     const storage = getStorage();
     const storageRef = ref(storage, `overtime_photos/${recordId}_${type}.jpg`);
     await uploadString(storageRef, photoDataUri, 'data_url');
-    return getDownloadURL(storageRef);
+    const downloadURL = await getDownloadURL(storageRef);
+
+    const recordRef = doc(db, 'overtimeRecords', recordId);
+    const fieldToUpdate = type === 'checkIn' ? { checkInPhoto: downloadURL } : { checkOutPhoto: downloadURL };
+    await updateDoc(recordRef, fieldToUpdate);
+    return downloadURL;
   };
 
   const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
     if (!db) return;
-    const docRef = await addDoc(collection(db, 'overtimeRecords'), { ...newRecordData, status: 'Pending' });
-    const checkInPhotoUrl = newRecordData.checkInPhoto ? await uploadPhoto(newRecordData.checkInPhoto, docRef.id, 'checkIn') : null;
     
     const createdAt = new Date().toISOString();
-    const finalRecord: OvertimeRecord = {
-      id: docRef.id,
+    const temporaryPhoto = newRecordData.checkInPhoto; // The data URI
+    
+    const initialRecord: Omit<OvertimeRecord, 'id' | 'checkInPhoto'> = {
       ...newRecordData,
-      checkInPhoto: checkInPhotoUrl,
+      checkInPhoto: null, // Set to null initially
       status: 'Checked In',
       checkOutTime: null,
       checkOutPhoto: null,
@@ -71,24 +75,42 @@ export function HomePage({ userRole }: HomePageProps) {
       verificationStatus: 'Pending',
       createdAt: createdAt,
     };
-    await updateDoc(docRef, finalRecord);
+    
+    const docRef = await addDoc(collection(db, 'overtimeRecords'), initialRecord);
+    
+    const finalRecord: OvertimeRecord = {
+      ...initialRecord,
+      id: docRef.id,
+      checkInPhoto: temporaryPhoto, // Show local photo immediately
+    };
     setLocalActiveRecord(finalRecord);
+
+    // Upload photo in the background
+    if (temporaryPhoto) {
+      uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
+    }
+
   }, [db]);
 
   const handleCheckOut = useCallback(async ({ id, checkOutTime, checkOutPhoto, checkOutLocation }: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
     if (!db || !checkOutTime || !checkOutPhoto) return;
 
-    const checkOutPhotoUrl = await uploadPhoto(checkOutPhoto, id, 'checkOut');
-
     const recordRef = doc(db, 'overtimeRecords', id);
+    
+    // Optimistically update the UI
     await updateDoc(recordRef, {
       status: 'Checked Out',
       checkOutTime: new Date(checkOutTime).toISOString(),
-      checkOutPhoto: checkOutPhotoUrl,
       checkOutLocation,
+      checkOutPhoto: null, // Will be updated in the background
     });
     setLocalActiveRecord(null);
+
+    // Upload photo in the background
+    uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
+
   }, [db]);
+
 
   const handleUpdateRecord = useCallback(async (updatedRecord: Partial<OvertimeRecord> & { id: string }) => {
     if (!db) return;
@@ -161,5 +183,3 @@ export function HomePage({ userRole }: HomePageProps) {
     </main>
   );
 }
-
-    
