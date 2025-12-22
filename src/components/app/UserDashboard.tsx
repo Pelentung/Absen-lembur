@@ -214,7 +214,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         <CardContent>
             <input
                 type="file"
-                accept="image/*"
                 capture="user"
                 ref={fileInputRef}
                 onChange={handlePhotoTaken}
@@ -333,5 +332,3 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     </div>
   );
 }
-
-    
