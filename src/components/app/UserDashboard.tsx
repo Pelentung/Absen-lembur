@@ -120,21 +120,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  
-        const now = new Date();
-        const timestamp = format(now, "d MMM yyyy, HH:mm:ss", { locale: id });
-        const coords = `Lat: ${location.latitude.toFixed(5)}, Lon: ${location.longitude.toFixed(5)}`;
-        
-        const fontSize = Math.max(12, Math.floor(canvas.width / 50));
-        context.font = `bold ${fontSize}px 'PT Sans', sans-serif`;
-        context.fillStyle = "rgba(255, 255, 255, 0.9)";
-        context.shadowColor = "black";
-        context.shadowBlur = 5;
-        context.textAlign = 'right';
-        const margin = fontSize;
-  
-        context.fillText(timestamp, canvas.width - margin, canvas.height - (margin * 2));
-        context.fillText(coords, canvas.width - margin, canvas.height - margin);
         
         const dataUri = canvas.toDataURL('image/jpeg', 0.9);
         setPhotoPreview(dataUri);
@@ -455,5 +440,3 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     </div>
   );
 }
-
-    
