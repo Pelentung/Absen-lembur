@@ -15,10 +15,15 @@ service cloud.firestore {
       // Authenticated users can create their own records
       allow create: if request.auth != null;
       
-      // Users can read/write their own records, admins can read/write all records
-      // This rule is for individual document access. List queries are handled by adjusting the client-side query.
-      allow read, update: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || request.auth.uid == resource.data.employeeId);
+      // Users can get their own records. Admins can get any record.
+      allow get: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || request.auth.uid == resource.data.employeeId);
       
+      // Admins can list all records. Users cannot list records they don't own (this must be enforced in the query).
+      allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      
+      // Users can update their own records, admins can update any record
+      allow update: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || request.auth.uid == resource.data.employeeId);
+
       // Only admins can delete records
       allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }

@@ -9,7 +9,7 @@ import { AdminDashboard } from "./AdminDashboard";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -24,17 +24,15 @@ export function HomePage({ userRole }: HomePageProps) {
   const auth = useAuth();
   const router = useRouter();
 
-  const [recordsQuery, setRecordsQuery] = useState<any>(null);
-
-  useEffect(() => {
-    if (db && user) {
-      if (userRole === 'Admin') {
-        // Admin can see all records
-        setRecordsQuery(query(collection(db, 'overtimeRecords')));
-      } else {
-        // Regular users can only see their own records
-        setRecordsQuery(query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid)));
-      }
+  const recordsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    
+    if (userRole === 'Admin') {
+      // Admin can see all records
+      return query(collection(db, 'overtimeRecords'));
+    } else {
+      // Regular users can only see their own records
+      return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
     }
   }, [db, user, userRole]);
 
