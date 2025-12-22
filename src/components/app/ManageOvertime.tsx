@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -26,7 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, ThumbsUp, ThumbsDown, FileSignature, Check, X } from "lucide-react";
+import { Loader2, Camera, Check, X } from "lucide-react";
 import type { OvertimeRecord, VerificationStatus } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -91,7 +92,7 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><FileSignature /> Kelola Absensi</CardTitle>
+        <CardTitle className="flex items-center gap-2"><Camera /> Kelola Absensi</CardTitle>
         <CardDescription>
           Verifikasi catatan lembur yang diajukan oleh pengguna.
         </CardDescription>
@@ -151,7 +152,7 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
 
         {/* Verification Dialog */}
         <Dialog open={isVerifyDialogOpen} onOpenChange={setIsVerifyDialogOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>{dialogTitle}</DialogTitle>
                     <DialogDescription>
@@ -159,7 +160,21 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid w-full items-center gap-2">
+                    <div className="flex justify-around gap-4">
+                        {selectedRecord?.checkInPhoto && (
+                            <div className="text-center">
+                                <h4 className="font-semibold mb-2">Foto Cek In</h4>
+                                <Image src={selectedRecord.checkInPhoto} alt="Foto Cek In" width={150} height={200} className="rounded-md border object-cover"/>
+                            </div>
+                        )}
+                        {selectedRecord?.checkOutPhoto && (
+                            <div className="text-center">
+                                <h4 className="font-semibold mb-2">Foto Cek Out</h4>
+                                <Image src={selectedRecord.checkOutPhoto} alt="Foto Cek Out" width={150} height={200} className="rounded-md border object-cover"/>
+                            </div>
+                        )}
+                    </div>
+                     <div className="grid w-full items-center gap-2">
                         <Label htmlFor="verificationNotes">Catatan (Opsional)</Label>
                         <Textarea 
                           id="verificationNotes" 
