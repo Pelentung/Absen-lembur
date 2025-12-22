@@ -38,7 +38,10 @@ export function HomePage({ userRole }: HomePageProps) {
   }, [db, user, userRole]);
 
   
-  const { data: records = [], loading, error } = useCollection<OvertimeRecord>(recordsQuery);
+  const { data: records = [], loading, error } = useCollection<OvertimeRecord>(
+    recordsQuery, 
+    { isRealtime: userRole === 'Admin' }
+  );
 
   const [localActiveRecord, setLocalActiveRecord] = useState<OvertimeRecord | null>(null);
 
