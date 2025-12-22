@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDashboard } from "./UserDashboard";
@@ -9,7 +9,7 @@ import { AdminDashboard } from "./AdminDashboard";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -23,8 +23,23 @@ export function HomePage({ userRole }: HomePageProps) {
   const { user, name: userName } = useUser();
   const auth = useAuth();
   const router = useRouter();
+
+  const [recordsQuery, setRecordsQuery] = useState<any>(null);
+
+  useEffect(() => {
+    if (db && user) {
+      if (userRole === 'Admin') {
+        // Admin can see all records
+        setRecordsQuery(query(collection(db, 'overtimeRecords')));
+      } else if (userName) {
+        // Regular users can only see their own records
+        setRecordsQuery(query(collection(db, 'overtimeRecords'), where('employeeName', '==', userName)));
+      }
+    }
+  }, [db, user, userRole, userName]);
+
   
-  const { data: records = [], loading, error } = useCollection<OvertimeRecord>(db ? collection(db, 'overtimeRecords') : null);
+  const { data: records = [], loading, error } = useCollection<OvertimeRecord>(recordsQuery);
 
   const [localActiveRecord, setLocalActiveRecord] = useState<OvertimeRecord | null>(null);
 
@@ -48,6 +63,7 @@ export function HomePage({ userRole }: HomePageProps) {
   );
 
   const uploadPhotoAndUpdateRecord = async (photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut') => {
+    if (!db) return;
     const storage = getStorage();
     const storageRef = ref(storage, `overtime_photos/${recordId}_${type}.jpg`);
     await uploadString(storageRef, photoDataUri, 'data_url');
@@ -127,7 +143,9 @@ export function HomePage({ userRole }: HomePageProps) {
 
 
   const handleLogout = async () => {
-    await auth.signOut();
+    if(auth) {
+        await auth.signOut();
+    }
     router.push('/login');
   };
 

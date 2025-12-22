@@ -127,6 +127,7 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
   };
 
   const calculateDuration = (checkIn: string, checkOut: string): string => {
+    if (!checkIn || !checkOut) return '-';
     return formatDistance(new Date(checkOut), new Date(checkIn), { locale: id });
   }
 
@@ -277,7 +278,7 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
             <div className="flex flex-col gap-4 py-4">
                 {photoToView && (
                     <div className="relative w-full aspect-square rounded-md overflow-hidden mx-auto">
-                        <Image src={photoToView.url} alt="Validation photo" layout="fill" objectFit="cover" />
+                        <Image src={photoToView.url} alt="Validation photo" fill objectFit="cover" />
                     </div>
                 )}
                 <Button onClick={handleValidate} disabled={isValidating}>
