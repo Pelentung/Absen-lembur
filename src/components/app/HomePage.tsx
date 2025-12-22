@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDashboard } from "./UserDashboard";
 import { ManageUsers } from "./ManageUsers";
 import { ManageOvertime } from "./ManageOvertime";
+import { AdminReport } from "./AdminReport";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole, UserProfile, VerificationStatus } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
@@ -39,7 +40,7 @@ export function HomePage({ userRole }: HomePageProps) {
   }, [db, userRole]);
 
   const { data: records = [] } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: true });
-  const { data: users = [] } = useCollection<UserProfile>(usersQuery);
+  const { data: users = [] } = useCollection<UserProfile>(usersQuery, { isRealtime: true });
 
 
   const [localActiveRecord, setLocalActiveRecord] = useState<OvertimeRecord | null>(null);
@@ -181,10 +182,11 @@ export function HomePage({ userRole }: HomePageProps) {
 
         <Tabs defaultValue={defaultTab} className="w-full">
           {userRole === 'Admin' ? (
-            <TabsList className="grid w-full grid-cols-3 md:w-[480px]">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 md:w-auto">
               <TabsTrigger value="user">Absensi Pribadi</TabsTrigger>
               <TabsTrigger value="admin-overtime">Kelola Absensi</TabsTrigger>
               <TabsTrigger value="admin-users">Kelola Pengguna</TabsTrigger>
+              <TabsTrigger value="admin-report">Laporan</TabsTrigger>
             </TabsList>
           ) : (
             <div />
@@ -209,9 +211,15 @@ export function HomePage({ userRole }: HomePageProps) {
               </TabsContent>
               <TabsContent value="admin-users" className="mt-6">
                 <ManageUsers 
-                  users={users ?? []}
+                  users={users}
                   onUpdateUser={handleUpdateUser}
                   onDeleteUser={handleDeleteUser}
+                />
+              </TabsContent>
+              <TabsContent value="admin-report" className="mt-6">
+                <AdminReport 
+                  records={sortedRecords}
+                  users={users}
                 />
               </TabsContent>
             </>
