@@ -9,7 +9,7 @@ import { AdminDashboard } from "./AdminDashboard";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -97,6 +97,13 @@ export function HomePage({ userRole }: HomePageProps) {
     await updateDoc(recordRef, { ...dataToUpdate });
   }, [db]);
 
+  const handleDeleteRecord = useCallback(async (recordId: string) => {
+    if (!db) return;
+    const recordRef = doc(db, 'overtimeRecords', recordId);
+    await deleteDoc(recordRef);
+  }, [db]);
+
+
   const handleLogout = async () => {
     await auth.signOut();
     router.push('/login');
@@ -145,6 +152,7 @@ export function HomePage({ userRole }: HomePageProps) {
               <AdminDashboard 
                 records={sortedRecords}
                 onUpdateRecord={handleUpdateRecord}
+                onDeleteRecord={handleDeleteRecord}
               />
             </TabsContent>
           )}
@@ -153,3 +161,5 @@ export function HomePage({ userRole }: HomePageProps) {
     </main>
   );
 }
+
+    

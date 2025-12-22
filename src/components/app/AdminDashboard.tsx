@@ -17,8 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Loader2, AlertTriangle, CheckCircle2, User, Image as ImageIcon, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Bot, Loader2, AlertTriangle, CheckCircle2, User, Image as ImageIcon, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { runPhotoValidation } from "@/lib/actions";
 import type { OvertimeRecord, ValidationResult, VerificationStatus } from "@/lib/types";
 import { Textarea } from "../ui/textarea";
@@ -28,15 +29,16 @@ import { useFirestore } from "@/firebase";
 type AdminDashboardProps = {
   records: OvertimeRecord[];
   onUpdateRecord: (updatedRecord: Partial<OvertimeRecord> & { id: string }) => void;
+  onDeleteRecord: (recordId: string) => void;
 };
 
-export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps) {
+export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: AdminDashboardProps) {
   const [filter, setFilter] = useState("daily");
   const [selectedRecord, setSelectedRecord] = useState<OvertimeRecord | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [photoToView, setPhotoToView] = useState<{ url: string; type: 'checkIn' | 'checkOut' } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [isVerificationDialogOpen, setIsVerificationDialogOpen] = useState(false);
+  const [isVerificationDialogOpen, setIsVerificationDialogOpen] = useState false;
   const [verificationNotes, setVerificationNotes] = useState("");
   const { db } = useFirestore();
 
@@ -180,6 +182,25 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                           <Button variant="default" size="sm" onClick={() => openVerificationDialog(record)} disabled={record.status !== 'Checked Out'}>
                             Tinjau
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data lembur secara permanen.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Hapus</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </TableCell>
                       </TableRow>
                     ))
@@ -287,3 +308,5 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
     </Card>
   );
 }
+
+    
