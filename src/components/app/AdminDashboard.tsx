@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import Image from "next/image";
 import { format, formatDistance, isToday, isThisWeek, isThisMonth } from "date-fns";
 import { id } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
 import {
   Table,
   TableBody,
@@ -19,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Loader2, AlertTriangle, CheckCircle2, User, Image as ImageIcon, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
+import { Bot, Loader2, AlertTriangle, CheckCircle2, User, Image as ImageIcon, ThumbsUp, ThumbsDown, Trash2, FileDown } from "lucide-react";
 import { runPhotoValidation } from "@/lib/actions";
 import type { OvertimeRecord, ValidationResult, VerificationStatus } from "@/lib/types";
 import { Textarea } from "../ui/textarea";
@@ -129,6 +130,38 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
     return formatDistance(new Date(checkOut), new Date(checkIn), { locale: id });
   }
 
+  const handleExport = () => {
+    const dataToExport = filteredRecords.map(record => ({
+      'Nama Karyawan': record.employeeName,
+      'Tanggal': record.checkInTime ? format(new Date(record.checkInTime), 'P', { locale: id }) : '-',
+      'Waktu Check-In': record.checkInTime ? format(new Date(record.checkInTime), 'p', { locale: id }) : '-',
+      'Waktu Check-Out': record.checkOutTime ? format(new Date(record.checkOutTime), 'p', { locale: id }) : '-',
+      'Durasi': record.checkInTime && record.checkOutTime ? calculateDuration(record.checkInTime, record.checkOutTime) : 'Belum Selesai',
+      'Keterangan': record.purpose ?? '-',
+      'Status Verifikasi': record.verificationStatus,
+      'Catatan Admin': record.verificationNotes ?? '-',
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Laporan Lembur ${filter}`);
+
+    // Adjust column widths
+    const colWidths = [
+        { wch: 20 }, // Nama Karyawan
+        { wch: 15 }, // Tanggal
+        { wch: 15 }, // Waktu Check-In
+        { wch: 15 }, // Waktu Check-Out
+        { wch: 20 }, // Durasi
+        { wch: 30 }, // Keterangan
+        { wch: 15 }, // Status Verifikasi
+        { wch: 30 }, // Catatan Admin
+    ];
+    worksheet['!cols'] = colWidths;
+    
+    XLSX.writeFile(workbook, `Laporan_Lembur_${filter}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -138,98 +171,107 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList>
-            <TabsTrigger value="daily">Harian</TabsTrigger>
-            <TabsTrigger value="weekly">Mingguan</TabsTrigger>
-            <TabsTrigger value="monthly">Bulanan</TabsTrigger>
-          </TabsList>
-          <TabsContent value={filter} className="mt-4">
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Karyawan</TableHead>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Durasi</TableHead>
-                    <TableHead>Keterangan</TableHead>
-                    <TableHead className="text-center">Verifikasi</TableHead>
-                    <TableHead className="text-center">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRecords.length > 0 ? (
-                    filteredRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">{record.employeeName}</TableCell>
-                        <TableCell>{record.checkInTime ? format(new Date(record.checkInTime), 'P', { locale: id }) : '-'}</TableCell>
-                        <TableCell>
-                          {record.checkInTime && record.checkOutTime
-                            ? calculateDuration(record.checkInTime, record.checkOutTime)
-                            : (record.checkInTime ? `${new Date(record.checkInTime).toLocaleTimeString('id-ID')} - ...` : '-')}
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">{record.purpose ?? '-'}</TableCell>
-                        <TableCell className="text-center">
-                          {renderVerificationBadge(record.verificationStatus)}
-                        </TableCell>
-                        <TableCell className="flex gap-2 justify-center">
-                          <Button variant="outline" size="sm" onClick={() => openPhotoDialog(record, 'checkIn')} disabled={!record.checkInPhoto}>
-                            Foto Masuk
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => openPhotoDialog(record, 'checkOut')} disabled={!record.checkOutPhoto}>
-                            Foto Keluar
-                          </Button>
-                          <Button variant="default" size="sm" onClick={() => openVerificationDialog(record)} disabled={record.status !== 'Checked Out'}>
-                            Tinjau
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="sm">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data lembur secara permanen.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Hapus</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        Tidak ada data untuk periode ini.
+        <div className="flex justify-between items-center mb-4">
+            <Tabs value={filter} onValueChange={setFilter}>
+            <TabsList>
+                <TabsTrigger value="daily">Harian</TabsTrigger>
+                <TabsTrigger value="weekly">Mingguan</TabsTrigger>
+                <TabsTrigger value="monthly">Bulanan</TabsTrigger>
+            </TabsList>
+            </Tabs>
+            <Button onClick={handleExport} variant="outline" disabled={filteredRecords.length === 0}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Ekspor ke Excel
+            </Button>
+        </div>
+
+        <TabsContent value={filter} className="mt-0">
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Karyawan</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Durasi</TableHead>
+                  <TableHead>Keterangan</TableHead>
+                  <TableHead className="text-center">Verifikasi</TableHead>
+                  <TableHead className="text-center">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRecords.length > 0 ? (
+                  filteredRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-medium">{record.employeeName}</TableCell>
+                      <TableCell>{record.checkInTime ? format(new Date(record.checkInTime), 'P', { locale: id }) : '-'}</TableCell>
+                      <TableCell>
+                        {record.checkInTime && record.checkOutTime
+                          ? calculateDuration(record.checkInTime, record.checkOutTime)
+                          : (record.checkInTime ? `${new Date(record.checkInTime).toLocaleTimeString('id-ID')} - ...` : '-')}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">{record.purpose ?? '-'}</TableCell>
+                      <TableCell className="text-center">
+                        {renderVerificationBadge(record.verificationStatus)}
+                      </TableCell>
+                      <TableCell className="flex gap-2 justify-center">
+                        <Button variant="outline" size="sm" onClick={() => openPhotoDialog(record, 'checkIn')} disabled={!record.checkInPhoto}>
+                          Foto Masuk
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => openPhotoDialog(record, 'checkOut')} disabled={!record.checkOutPhoto}>
+                          Foto Keluar
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => openVerificationDialog(record)} disabled={record.status !== 'Checked Out'}>
+                          Tinjau
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data lembur secara permanen.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Hapus</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
-        </Tabs>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      Tidak ada data untuk periode ini.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
 
         {/* Photo Validation Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Validasi Foto {photoToView?.type === 'checkIn' ? 'Cek In' : 'Cek Out'}</DialogTitle>
-              <DialogDescription>
-                Gunakan AI untuk memvalidasi bahwa foto ini adalah foto orang.
-                {selectedRecord?.purpose && photoToView?.type === 'checkIn' && (
-                    <div className="pt-4">
-                        <div className="font-semibold">Keterangan Lembur:</div>
-                        <div className="text-sm text-muted-foreground">{selectedRecord.purpose}</div>
-                    </div>
-                )}
+              <DialogDescription asChild>
+                  <div>
+                    Gunakan AI untuk memvalidasi bahwa foto ini adalah foto orang.
+                    {selectedRecord?.purpose && photoToView?.type === 'checkIn' && (
+                        <div className="pt-4">
+                            <div className="font-semibold">Keterangan Lembur:</div>
+                            <div className="text-sm text-muted-foreground">{selectedRecord.purpose}</div>
+                        </div>
+                    )}
+                  </div>
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
@@ -308,5 +350,3 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
     </Card>
   );
 }
-
-    
