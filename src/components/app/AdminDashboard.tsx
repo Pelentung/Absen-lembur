@@ -133,7 +133,7 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
 
   const handleExport = () => {
     const dataToExport = filteredRecords.map(record => ({
-      'Nama Karyawan': record.employeeName,
+      'Nama Pegawai': record.employeeName,
       'Tanggal': record.checkInTime ? format(new Date(record.checkInTime), 'P', { locale: id }) : '-',
       'Waktu Check-In': record.checkInTime ? format(new Date(record.checkInTime), 'p', { locale: id }) : '-',
       'Waktu Check-Out': record.checkOutTime ? format(new Date(record.checkOutTime), 'p', { locale: id }) : '-',
@@ -149,7 +149,7 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
 
     // Adjust column widths
     const colWidths = [
-        { wch: 20 }, // Nama Karyawan
+        { wch: 20 }, // Nama Pegawai
         { wch: 15 }, // Tanggal
         { wch: 15 }, // Waktu Check-In
         { wch: 15 }, // Waktu Check-Out
@@ -166,7 +166,7 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Laporan Lembur Karyawan</CardTitle>
+        <CardTitle>Laporan Lembur Pegawai</CardTitle>
         <CardDescription>
           Tinjau, validasi foto, dan verifikasi data lembur yang tercatat.
         </CardDescription>
@@ -191,7 +191,7 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Karyawan</TableHead>
+                  <TableHead>Pegawai</TableHead>
                   <TableHead>Tanggal</TableHead>
                   <TableHead>Durasi</TableHead>
                   <TableHead>Keterangan</TableHead>
@@ -327,7 +327,7 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
             </DialogHeader>
             {selectedRecord && (
               <div className="space-y-4 py-4">
-                <p><strong>Karyawan:</strong> {selectedRecord.employeeName}</p>
+                <p><strong>Pegawai:</strong> {selectedRecord.employeeName}</p>
                 <p><strong>Keterangan:</strong> {selectedRecord.purpose}</p>
                 <p><strong>Durasi:</strong> {selectedRecord.checkInTime && selectedRecord.checkOutTime ? calculateDuration(selectedRecord.checkInTime, selectedRecord.checkOutTime) : 'N/A'}</p>
                 <Textarea 

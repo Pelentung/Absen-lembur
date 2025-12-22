@@ -50,12 +50,12 @@
     },
     "OvertimeRecord": {
       "title": "Overtime Record",
-      "description": "Represents a single overtime record for an employee.",
+      "description": "Mewakili satu catatan lembur untuk seorang pegawai.",
       "type": "object",
       "properties": {
         "employeeName": {
           "type": "string",
-          "description": "The name of the employee."
+          "description": "Nama pegawai."
         },
         "checkInTime": {
           "type": "string",
