@@ -44,7 +44,7 @@ type ManageUsersProps = {
   onDeleteUser: (userId: string) => void;
 };
 
-export function ManageUsers({ users, onUpdateUser, onDeleteUser }: ManageUsersProps) {
+export function ManageUsers({ users = [], onUpdateUser, onDeleteUser }: ManageUsersProps) {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
