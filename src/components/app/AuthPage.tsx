@@ -77,7 +77,6 @@ export function AuthPage() {
         router.push('/');
       }
     } catch (error: any) {
-      console.error(error);
       let description = 'Terjadi kesalahan. Silakan coba lagi.';
       if (error.code === 'auth/invalid-credential') {
         description = 'Email atau password yang Anda masukkan salah. Mohon periksa kembali.';
