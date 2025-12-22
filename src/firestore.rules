@@ -19,16 +19,19 @@ service cloud.firestore {
                   (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
                    resource.data.employeeId == request.auth.uid);
       
-      // Admins can list all records.
+      // Admins can list all records. Users can query for their own records.
       allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
 
-      // Authenticated users can create their own records
+      // Authenticated users can create their own records.
+      // The employeeId in the new document must match the creator's UID.
       allow create: if request.auth != null && request.resource.data.employeeId == request.auth.uid;
       
-      // Users can update their own records for check-out, admins can update any record for verification.
+      // Users can update their own records for check-out.
+      // Admins can update any record for verification.
+      // This rule checks the existing document's owner (`resource.data.employeeId`).
       allow update: if request.auth != null && 
                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
-                     (request.auth.uid == resource.data.employeeId));
+                     resource.data.employeeId == request.auth.uid);
 
       // Only admins can delete records
       allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
