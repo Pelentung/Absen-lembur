@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { format, differenceInMinutes } from "date-fns";
 import { id } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import {
@@ -39,13 +39,22 @@ export function AdminReport({ records = [], users = [] }: AdminReportProps) {
       return nameMatch && purposeMatch;
     });
   }, [records, filterName, filterPurpose]);
+  
+  const calculateDuration = (checkInTime: string | null, checkOutTime: string | null): string => {
+    if (!checkInTime || !checkOutTime) {
+      return "-";
+    }
+    const minutes = differenceInMinutes(new Date(checkOutTime), new Date(checkInTime));
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours} jam ${remainingMinutes} menit`;
+  };
 
   const handleExport = () => {
     const dataToExport = filteredRecords.map((record) => ({
       "Nama Pegawai": record.employeeName,
       "Tanggal": record.checkInTime ? format(new Date(record.checkInTime), "d MMM yyyy", { locale: id }) : "",
-      "Waktu Check-In": record.checkInTime ? format(new Date(record.checkInTime), "HH:mm:ss") : "",
-      "Waktu Check-Out": record.checkOutTime ? format(new Date(record.checkOutTime), "HH:mm:ss") : "",
+      "Total Jam Lembur": calculateDuration(record.checkInTime, record.checkOutTime),
       "Keterangan Lembur": record.purpose || "",
       "Status Verifikasi": record.verificationStatus,
       "Catatan Verifikasi": record.verificationNotes || "",
@@ -128,7 +137,7 @@ export function AdminReport({ records = [], users = [] }: AdminReportProps) {
               <TableRow>
                 <TableHead>Nama Pegawai</TableHead>
                 <TableHead>Tanggal</TableHead>
-                <TableHead>Waktu</TableHead>
+                <TableHead>Total Waktu</TableHead>
                 <TableHead>Keterangan</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -142,7 +151,7 @@ export function AdminReport({ records = [], users = [] }: AdminReportProps) {
                       {record.checkInTime ? format(new Date(record.checkInTime), "d MMM yyyy", { locale: id }) : '-'}
                     </TableCell>
                      <TableCell>
-                      {record.checkInTime ? format(new Date(record.checkInTime), "HH:mm") : '-'} - {record.checkOutTime ? format(new Date(record.checkOutTime), "HH:mm") : '...'}
+                      {calculateDuration(record.checkInTime, record.checkOutTime)}
                     </TableCell>
                     <TableCell>{record.purpose}</TableCell>
                     <TableCell>{getStatusBadge(record.verificationStatus)}</TableCell>
