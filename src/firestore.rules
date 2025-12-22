@@ -13,16 +13,15 @@ service cloud.firestore {
 
     // Overtime Records
     match /overtimeRecords/{recordId} {
-      // Users can get their own records, Admins can get any record.
-      allow get: if request.auth != null && (request.auth.uid == resource.data.employeeId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
-      
-      // Admins can list all records.
-      allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
-      
+      // Admins can read all records. Users can only read their own via queries.
+      allow read: if request.auth != null && 
+                  (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
+                   request.auth.uid == request.query.filters.employeeId);
+
       // Authenticated users can create their own records
       allow create: if request.auth != null && request.resource.data.employeeId == request.auth.uid;
       
-      // Users can update their own records for check-out, admins can update any record for verification.
+      // Users can update their own records, admins can update any record
       allow update: if request.auth != null && 
                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
                      request.auth.uid == resource.data.employeeId);
