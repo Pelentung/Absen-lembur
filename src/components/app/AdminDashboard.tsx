@@ -38,7 +38,7 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [photoToView, setPhotoToView] = useState<{ url: string; type: 'checkIn' | 'checkOut' } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [isVerificationDialogOpen, setIsVerificationDialogOpen] = useState false;
+  const [isVerificationDialogOpen, setIsVerificationDialogOpen] = useState(false);
   const [verificationNotes, setVerificationNotes] = useState("");
   const { db } = useFirestore();
 
@@ -309,4 +309,5 @@ export function AdminDashboard({ records, onUpdateRecord, onDeleteRecord }: Admi
   );
 }
 
+    
     
