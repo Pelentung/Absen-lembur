@@ -27,13 +27,14 @@ export function HomePage({ userRole }: HomePageProps) {
   const recordsQuery = useMemo(() => {
     if (!db || !user) return null;
     
+    // Admin gets all records
     if (userRole === 'Admin') {
-      // Admin can see all records
       return query(collection(db, 'overtimeRecords'));
-    } else {
-      // Regular users can only see their own records
-      return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
-    }
+    } 
+    
+    // Regular users only get their own records
+    return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
+    
   }, [db, user, userRole]);
 
   
@@ -73,7 +74,7 @@ export function HomePage({ userRole }: HomePageProps) {
     return downloadURL;
   };
 
-  const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'employeeId' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
+  const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
     if (!db || !user || !userName) return;
     
     const createdAt = new Date().toISOString();
