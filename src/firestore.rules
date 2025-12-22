@@ -19,7 +19,7 @@ service cloud.firestore {
                   (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
                    resource.data.employeeId == request.auth.uid);
       
-      // Admins can list all records. Users can query their own records based on employeeId.
+      // Admins can list all records.
       allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
 
       // Authenticated users can create their own records
