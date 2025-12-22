@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { format, formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
-import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap, ThumbsUp, ThumbsDown, Hourglass, History, FileUp } from "lucide-react";
+import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap, ThumbsUp, ThumbsDown, Hourglass, History, FileUp, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { OvertimeRecord, GeoLocation, VerificationStatus } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
+import { runPhotoValidation } from "@/lib/actions";
 
 
 type UserDashboardProps = {
@@ -189,6 +190,26 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     setIsPurposeDialogOpen(false);
 
     try {
+      // AI Photo Validation
+      const validationResult = await runPhotoValidation(photoPreview);
+      if (validationResult.error || !validationResult.isPerson || (validationResult.confidence && validationResult.confidence < 0.7)) {
+          toast({
+              variant: "destructive",
+              title: "Validasi Foto Gagal",
+              description: "Sistem mendeteksi foto tidak valid (bukan gambar orang). Mohon ambil foto selfie dengan jelas.",
+          });
+          setIsLoading(false);
+          // Allow user to retake photo
+          setPhotoPreview(null);
+          setShowCamera(true);
+          return;
+      }
+      toast({
+          title: "Validasi Foto Berhasil",
+          description: `Foto terverifikasi sebagai gambar orang dengan keyakinan ${Math.round(validationResult.confidence * 100)}%.`,
+      });
+
+
       const now = new Date().toISOString();
 
       if (isCheckedIn && activeRecord) {
@@ -205,6 +226,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           checkInPhoto: photoPreview,
           checkInLocation: location,
           purpose: purpose,
+          checkInValidation: validationResult
         });
         toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${new Date(now).toLocaleTimeString()}` });
       }
@@ -228,6 +250,25 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     }
   };
 
+  const renderValidationInfo = (record: OvertimeRecord) => {
+    const validation = record.checkInValidation;
+    if (!validation) return null;
+
+    if ('error' in validation) {
+      return <p className="text-destructive text-xs">Validasi AI gagal: {validation.error}</p>;
+    }
+
+    if (!validation.isPerson) {
+      return (
+         <div className="flex items-center text-yellow-600 text-xs gap-1">
+          <ShieldAlert className="h-3 w-3"/>
+          <span>AI: Terdeteksi bukan orang ({Math.round(validation.confidence * 100)}%)</span>
+        </div>
+      );
+    }
+    return null;
+  }
+
   const renderPreview = () => {
     const confirmButtonText = isCheckedIn ? "Konfirmasi Cek Out" : "Konfirmasi Cek In";
     return (
@@ -250,7 +291,8 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           </CardContent>
           <CardFooter>
             <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirm} disabled={isLoading || !location}>
-              {isLoading ? <Loader2 className="animate-spin" /> : confirmButtonText}
+              {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
+              {isLoading ? "Memvalidasi & Menyimpan..." : confirmButtonText}
             </Button>
           </CardFooter>
         </Card>
@@ -298,7 +340,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           <CardDescription>
             {isCheckedIn
               ? "Selesaikan sesi lembur Anda dengan mengambil foto."
-              : "Mulai sesi lembur Anda dengan mengambil foto."}
+              : "Mulai sesi lembur Anda dengan mengambil foto selfie."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -333,7 +375,10 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
               <AccordionItem value={record.id} key={record.id}>
                 <AccordionTrigger>
                   <div className="flex justify-between w-full pr-4 items-center">
-                    <span>{record.checkInTime ? format(new Date(record.checkInTime), "eeee, d MMM yyyy", { locale: id }) : 'Invalid Date'}</span>
+                    <div className="flex flex-col text-left">
+                       <span>{record.checkInTime ? format(new Date(record.checkInTime), "eeee, d MMM yyyy", { locale: id }) : 'Invalid Date'}</span>
+                       {renderValidationInfo(record)}
+                    </div>
                     {renderVerificationStatus(record.verificationStatus)}
                   </div>
                 </AccordionTrigger>
