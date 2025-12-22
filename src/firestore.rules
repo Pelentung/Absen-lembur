@@ -18,7 +18,7 @@ service cloud.firestore {
       // Users can get their own records. Admins can get any record.
       allow get: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || request.auth.uid == resource.data.employeeId);
       
-      // Admins can list all records. Users cannot list records they don't own (this must be enforced in the query).
+      // Admins can list all records. Regular users cannot list records (this must be enforced in the query).
       allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
       
       // Users can update their own records, admins can update any record
