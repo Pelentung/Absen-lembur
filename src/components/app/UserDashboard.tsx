@@ -121,7 +121,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        const dataUri = canvas.toDataURL('image/jpeg', 0.9);
+        const dataUri = canvas.toDataURL('image/jpeg', 0.5);
         setPhotoPreview(dataUri);
         setShowCamera(false);
       }
