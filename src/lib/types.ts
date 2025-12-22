@@ -26,6 +26,7 @@ export type UserProfile = {
 
 export type OvertimeRecord = {
   id: string;
+  employeeId: string;
   employeeName: string;
   checkInTime: string | null; // Changed to string for Firestore compatibility
   checkOutTime: string | null; // Changed to string for Firestore compatibility

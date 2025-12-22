@@ -31,12 +31,12 @@ export function HomePage({ userRole }: HomePageProps) {
       if (userRole === 'Admin') {
         // Admin can see all records
         setRecordsQuery(query(collection(db, 'overtimeRecords')));
-      } else if (userName) {
+      } else {
         // Regular users can only see their own records
-        setRecordsQuery(query(collection(db, 'overtimeRecords'), where('employeeName', '==', userName)));
+        setRecordsQuery(query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid)));
       }
     }
-  }, [db, user, userRole, userName]);
+  }, [db, user, userRole]);
 
   
   const { data: records = [], loading, error } = useCollection<OvertimeRecord>(recordsQuery);
@@ -53,13 +53,13 @@ export function HomePage({ userRole }: HomePageProps) {
   }, [records]);
 
   const activeUserRecord = useMemo(() => 
-    localActiveRecord ?? sortedRecords.find(r => r.employeeName === userName && r.status === "Checked In") ?? null, 
-    [sortedRecords, userName, localActiveRecord]
+    localActiveRecord ?? sortedRecords.find(r => r.employeeId === user?.uid && r.status === "Checked In") ?? null, 
+    [sortedRecords, user, localActiveRecord]
   );
   
   const userHistory = useMemo(() =>
-    sortedRecords.filter(r => r.employeeName === userName),
-    [sortedRecords, userName]
+    sortedRecords.filter(r => r.employeeId === user?.uid),
+    [sortedRecords, user]
   );
 
   const uploadPhotoAndUpdateRecord = async (photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut') => {
@@ -75,14 +75,16 @@ export function HomePage({ userRole }: HomePageProps) {
     return downloadURL;
   };
 
-  const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
-    if (!db) return;
+  const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'employeeId' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
+    if (!db || !user || !userName) return;
     
     const createdAt = new Date().toISOString();
     const temporaryPhoto = newRecordData.checkInPhoto; // The data URI
     
     const initialRecord: Omit<OvertimeRecord, 'id' | 'checkInPhoto'> = {
       ...newRecordData,
+      employeeId: user.uid,
+      employeeName: userName,
       checkInPhoto: null, // Set to null initially
       status: 'Checked In',
       checkOutTime: null,
@@ -106,7 +108,7 @@ export function HomePage({ userRole }: HomePageProps) {
       uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
     }
 
-  }, [db]);
+  }, [db, user, userName]);
 
   const handleCheckOut = useCallback(async ({ id, checkOutTime, checkOutPhoto, checkOutLocation }: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
     if (!db || !checkOutTime || !checkOutPhoto) return;
