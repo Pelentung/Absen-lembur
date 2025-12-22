@@ -27,7 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Camera, Check, X } from "lucide-react";
+import { Loader2, Camera, Check, X, MapPin } from "lucide-react";
 import type { OvertimeRecord, VerificationStatus } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -160,17 +160,39 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="flex justify-around gap-4">
-                        {selectedRecord?.checkInPhoto && (
-                            <div className="text-center">
-                                <h4 className="font-semibold mb-2">Foto Cek In</h4>
-                                <Image src={selectedRecord.checkInPhoto} alt="Foto Cek In" width={150} height={200} className="rounded-md border object-cover"/>
+                    <div className="flex justify-around gap-4 text-center">
+                        {selectedRecord?.checkInLocation && (
+                            <div>
+                                <h4 className="font-semibold mb-2">Lokasi Cek In</h4>
+                                <a 
+                                  href={`https://www.google.com/maps/search/?api=1&query=${selectedRecord.checkInLocation.latitude},${selectedRecord.checkInLocation.longitude}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center justify-center gap-2 text-sm text-primary hover:underline"
+                                >
+                                  <MapPin className="h-4 w-4" />
+                                  <span>Lihat di Peta</span>
+                                </a>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {selectedRecord.checkInLocation.latitude.toFixed(5)}, {selectedRecord.checkInLocation.longitude.toFixed(5)}
+                                </p>
                             </div>
                         )}
-                        {selectedRecord?.checkOutPhoto && (
-                            <div className="text-center">
-                                <h4 className="font-semibold mb-2">Foto Cek Out</h4>
-                                <Image src={selectedRecord.checkOutPhoto} alt="Foto Cek Out" width={150} height={200} className="rounded-md border object-cover"/>
+                        {selectedRecord?.checkOutLocation && (
+                             <div>
+                                <h4 className="font-semibold mb-2">Lokasi Cek Out</h4>
+                                <a 
+                                  href={`https://www.google.com/maps/search/?api=1&query=${selectedRecord.checkOutLocation.latitude},${selectedRecord.checkOutLocation.longitude}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center justify-center gap-2 text-sm text-primary hover:underline"
+                                >
+                                  <MapPin className="h-4 w-4" />
+                                  <span>Lihat di Peta</span>
+                                </a>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {selectedRecord.checkOutLocation.latitude.toFixed(5)}, {selectedRecord.checkOutLocation.longitude.toFixed(5)}
+                                </p>
                             </div>
                         )}
                     </div>
