@@ -5,7 +5,6 @@ import { useState, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDashboard } from "./UserDashboard";
-import { AdminDashboard } from "./AdminDashboard";
 import { ManageUsers } from "./ManageUsers";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole, UserProfile } from "@/lib/types";
@@ -27,21 +26,15 @@ export function HomePage({ userRole }: HomePageProps) {
 
   const recordsQuery = useMemo(() => {
     if (!db || !user) return null;
-    if (userRole === 'Admin') {
-      return query(collection(db, 'overtimeRecords'));
-    }
     return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
-  }, [db, user, userRole]);
+  }, [db, user]);
 
   const usersQuery = useMemo(() => {
     if (!db || userRole !== 'Admin') return null;
     return query(collection(db, 'users'));
   }, [db, userRole]);
 
-  const { data: records = [] } = useCollection<OvertimeRecord>(
-    recordsQuery,
-    { isRealtime: userRole === 'Admin' }
-  );
+  const { data: records = [] } = useCollection<OvertimeRecord>(recordsQuery);
   
   const { data: users = [] } = useCollection<UserProfile>(usersQuery);
 
@@ -133,19 +126,6 @@ export function HomePage({ userRole }: HomePageProps) {
   }, [db]);
 
 
-  const handleUpdateRecord = useCallback(async (updatedRecord: Partial<OvertimeRecord> & { id: string }) => {
-    if (!db) return;
-    const { id, ...dataToUpdate } = updatedRecord;
-    const recordRef = doc(db, 'overtimeRecords', id);
-    await updateDoc(recordRef, { ...dataToUpdate });
-  }, [db]);
-
-  const handleDeleteRecord = useCallback(async (recordId: string) => {
-    if (!db) return;
-    const recordRef = doc(db, 'overtimeRecords', recordId);
-    await deleteDoc(recordRef);
-  }, [db]);
-
   const handleUpdateUser = useCallback(async (updatedUser: Partial<UserProfile> & { id: string }) => {
     if (!db) return;
     const { id, ...dataToUpdate } = updatedUser;
@@ -168,7 +148,7 @@ export function HomePage({ userRole }: HomePageProps) {
     router.push('/login');
   };
 
-  const defaultTab = userRole === 'Admin' ? 'admin-laporan' : 'user';
+  const defaultTab = userRole === 'Admin' ? 'admin-users' : 'user';
 
   return (
     <main className="min-h-screen bg-background">
@@ -189,9 +169,8 @@ export function HomePage({ userRole }: HomePageProps) {
 
         <Tabs defaultValue={defaultTab} className="w-full">
           {userRole === 'Admin' ? (
-            <TabsList className="grid w-full grid-cols-3 md:w-[480px]">
+            <TabsList className="grid w-full grid-cols-2 md:w-[320px]">
               <TabsTrigger value="user">Absensi</TabsTrigger>
-              <TabsTrigger value="admin-laporan">Laporan Lembur</TabsTrigger>
               <TabsTrigger value="admin-users">Kelola Pengguna</TabsTrigger>
             </TabsList>
           ) : (
@@ -209,13 +188,6 @@ export function HomePage({ userRole }: HomePageProps) {
           </TabsContent>
           {userRole === 'Admin' && (
             <>
-              <TabsContent value="admin-laporan" className="mt-6">
-                <AdminDashboard 
-                  records={sortedRecords}
-                  onUpdateRecord={handleUpdateRecord}
-                  onDeleteRecord={handleDeleteRecord}
-                />
-              </TabsContent>
               <TabsContent value="admin-users" className="mt-6">
                 <ManageUsers 
                   users={users}
