@@ -15,6 +15,8 @@ import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "fir
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
+import { InstallPWAButton } from "./InstallPWAButton";
+
 
 type HomePageProps = {
   userRole: UserRole;
@@ -39,8 +41,8 @@ export function HomePage({ userRole }: HomePageProps) {
     return query(collection(db, 'users'));
   }, [db, userRole]);
 
-  const { data: records = [] } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: true });
-  const { data: users = [] } = useCollection<UserProfile>(usersQuery, { isRealtime: true });
+  const { data: records } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: true });
+  const { data: users } = useCollection<UserProfile>(usersQuery, { isRealtime: true });
 
 
   const [localActiveRecord, setLocalActiveRecord] = useState<OvertimeRecord | null>(null);
@@ -184,6 +186,7 @@ export function HomePage({ userRole }: HomePageProps) {
                 </div>
             </div>
             <div className="flex items-center gap-4">
+                <InstallPWAButton />
                 <span className="text-sm text-muted-foreground hidden sm:inline">Halo, {userName}!</span>
                 <Button variant="outline" onClick={handleLogout}>Keluar</Button>
             </div>

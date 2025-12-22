@@ -7,6 +7,7 @@ import { FirebaseProvider } from '@/firebase';
 export const metadata: Metadata = {
   title: 'ABSENSI LEMBUR',
   description: 'Dinas Perumahan Kawasan Permukiman Cipta Karya dan Tata Ruang Kota Medan',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
