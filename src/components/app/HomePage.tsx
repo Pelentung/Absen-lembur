@@ -77,12 +77,16 @@ export function HomePage({ userRole }: HomePageProps) {
         const downloadURL = await getDownloadURL(storageRef);
 
         const recordRef = doc(db, 'overtimeRecords', recordId);
-        const fieldToUpdate = type === 'checkIn' ? { checkInPhoto: downloadURL } : { checkOutPhoto: downloadURL };
+        const fieldToUpdate = type === 'checkIn' 
+            ? { checkInPhoto: downloadURL } 
+            : { checkOutPhoto: downloadURL };
+            
         await updateDoc(recordRef, fieldToUpdate);
 
         return downloadURL;
     } catch(error) {
         console.error(`Error uploading ${type} photo and updating record:`, error);
+        // Optionally re-throw or handle the error, e.g., by showing a toast
     }
   }, [db]);
 
@@ -90,13 +94,13 @@ export function HomePage({ userRole }: HomePageProps) {
     if (!db || !user || !userName) return;
     
     const createdAt = new Date().toISOString();
-    const temporaryPhoto = newRecordData.checkInPhoto; // The data URI
+    const temporaryPhoto = newRecordData.checkInPhoto; // This is the data URI
     
-    const initialRecord: Omit<OvertimeRecord, 'id' | 'checkInPhoto'> = {
+    const initialRecord: Omit<OvertimeRecord, 'id'> = {
       ...newRecordData,
       employeeId: user.uid,
       employeeName: userName,
-      checkInPhoto: null, // Set to null initially
+      checkInPhoto: null, // Will be updated with URL from storage
       status: 'Checked In',
       checkOutTime: null,
       checkOutPhoto: null,
@@ -105,18 +109,22 @@ export function HomePage({ userRole }: HomePageProps) {
       createdAt: createdAt,
     };
     
-    const docRef = await addDoc(collection(db, 'overtimeRecords'), initialRecord);
-    
-    const finalRecord: OvertimeRecord = {
-      ...initialRecord,
-      id: docRef.id,
-      checkInPhoto: temporaryPhoto, // Show local photo immediately
-    };
-    setLocalActiveRecord(finalRecord);
+    try {
+      const docRef = await addDoc(collection(db, 'overtimeRecords'), initialRecord);
+      
+      const finalRecord: OvertimeRecord = {
+        ...initialRecord,
+        id: docRef.id,
+        checkInPhoto: temporaryPhoto, // Use local data URI for immediate UI feedback
+      };
+      setLocalActiveRecord(finalRecord);
 
-    // Upload photo in the background and update firestore doc
-    if (temporaryPhoto) {
-      await uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
+      // Upload photo and update the doc with the real URL in the background
+      if (temporaryPhoto) {
+        await uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
+      }
+    } catch (error) {
+      console.error("Error during check-in:", error);
     }
 
   }, [db, user, userName, uploadPhotoAndUpdateRecord]);
@@ -129,15 +137,19 @@ export function HomePage({ userRole }: HomePageProps) {
     // Optimistically update the local state to show it's checked out
     setLocalActiveRecord(null);
     
-    // Update the document with checkout time, location, and a temporary status. Photo URL will be updated in the background.
-    await updateDoc(recordRef, {
-      status: 'Checked Out',
-      checkOutTime: new Date(checkOutTime).toISOString(),
-      checkOutLocation,
-    });
+    try {
+      // Update the document with checkout time, location, and status.
+      await updateDoc(recordRef, {
+        status: 'Checked Out',
+        checkOutTime: new Date(checkOutTime).toISOString(),
+        checkOutLocation,
+      });
 
-    // Upload photo in the background and update the doc with the final URL
-    await uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
+      // Upload photo and update the doc with the final URL in the background
+      await uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
+    } catch (error) {
+      console.error("Error during check-out:", error);
+    }
 
   }, [db, uploadPhotoAndUpdateRecord]);
 
@@ -242,3 +254,5 @@ export function HomePage({ userRole }: HomePageProps) {
     </main>
   );
 }
+
+    
