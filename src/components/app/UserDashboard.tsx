@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap, ThumbsUp, ThumbsDown, Hourglass, History, FileUp, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -360,40 +360,67 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   };
   
   const renderHistory = () => {
-    const checkedOutRecords = historyRecords.filter(r => r.status === 'Checked Out');
-    if (checkedOutRecords.length === 0) return null;
+    const checkedOutRecords = historyRecords.filter(r => r.status === 'Checked Out' && r.checkInTime);
+
+    const recordsByMonth = useMemo(() => {
+        return checkedOutRecords.reduce((acc, record) => {
+            const monthKey = format(parseISO(record.checkInTime!), 'MMMM yyyy', { locale: id });
+            if (!acc[monthKey]) {
+                acc[monthKey] = [];
+            }
+            acc[monthKey].push(record);
+            return acc;
+        }, {} as Record<string, OvertimeRecord[]>);
+    }, [checkedOutRecords]);
+
+    const monthKeys = Object.keys(recordsByMonth);
+
+    if (monthKeys.length === 0) return null;
 
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><History className="h-6 w-6" /> Riwayat Lembur</CardTitle>
-          <CardDescription>Daftar catatan lembur Anda sebelumnya.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            {checkedOutRecords.map(record => (
-              <AccordionItem value={record.id} key={record.id}>
-                <AccordionTrigger>
-                  <div className="flex justify-between w-full pr-4 items-center">
-                    <div className="flex flex-col text-left">
-                       <span>{record.checkInTime ? format(new Date(record.checkInTime), "eeee, d MMM yyyy", { locale: id }) : 'Invalid Date'}</span>
-                       {renderValidationInfo(record)}
-                    </div>
-                    {renderVerificationStatus(record.verificationStatus)}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-2 text-sm">
-                  <p><strong>Keterangan:</strong> {record.purpose}</p>
-                  <p><strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? formatDistanceToNow(new Date(record.checkOutTime), { locale: id, addSuffix: true }).replace('yang lalu', '') + ` dari ${formatDistanceToNow(new Date(record.checkInTime), { locale: id, addSuffix: false })}` : 'N/A'}</p>
-                  <p><strong>Cek In:</strong> {record.checkInTime ? new Date(record.checkInTime).toLocaleString('id-ID') : '-'}</p>
-                  <p><strong>Cek Out:</strong> {record.checkOutTime ? new Date(record.checkOutTime).toLocaleString('id-ID') : '-'}</p>
-                  {record.verificationNotes && <p className="text-muted-foreground italic"><strong>Catatan Admin:</strong> {record.verificationNotes}</p>}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </CardContent>
-      </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><History className="h-6 w-6" /> Riwayat Lembur</CardTitle>
+                <CardDescription>Daftar catatan lembur Anda sebelumnya, dikelompokkan per bulan.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Accordion type="single" collapsible className="w-full" defaultValue={monthKeys[0]}>
+                    {monthKeys.map(month => (
+                        <AccordionItem value={month} key={month}>
+                            <AccordionTrigger>
+                                <span className="font-semibold">{month}</span>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <Accordion type="single" collapsible className="w-full space-y-2">
+                                    {recordsByMonth[month].map(record => (
+                                        <AccordionItem value={record.id} key={record.id} className="border rounded-md px-4">
+                                            <AccordionTrigger>
+                                                <div className="flex justify-between w-full pr-4 items-center">
+                                                    <div className="flex flex-col text-left">
+                                                        <span>{format(parseISO(record.checkInTime!), "eeee, d MMM yyyy", { locale: id })}</span>
+                                                        {renderValidationInfo(record)}
+                                                    </div>
+                                                    {renderVerificationStatus(record.verificationStatus)}
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="space-y-2 text-sm pt-2">
+                                                 <p><strong>Keterangan:</strong> {record.purpose}</p>
+                                                 <p>
+                                                    <strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? 
+                                                      formatDistanceToNow(parseISO(record.checkOutTime), { locale: id, addSuffix: false }) + ` (dari ${format(parseISO(record.checkInTime), 'HH:mm')} s/d ${format(parseISO(record.checkOutTime), 'HH:mm')})`
+                                                      : 'N/A'}
+                                                  </p>
+                                                {record.verificationNotes && <p className="text-muted-foreground italic"><strong>Catatan Admin:</strong> {record.verificationNotes}</p>}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                </Accordion>
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
+            </CardContent>
+        </Card>
     );
   };
 
@@ -470,3 +497,5 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     </div>
   );
 }
+
+    
