@@ -1,13 +1,7 @@
 
-
 export type GeoLocation = {
   latitude: number;
   longitude: number;
-};
-
-export type ValidationResult = {
-  isPerson: boolean;
-  confidence: number;
 };
 
 export type VerificationStatus = 'Pending' | 'Accepted' | 'Rejected';
@@ -37,9 +31,9 @@ export type OvertimeRecord = {
   checkOutLocation: GeoLocation | null;
   status: 'Checked In' | 'Checked Out' | 'Pending';
   purpose?: string; // Overtime purpose
-  checkInValidation?: ValidationResult | { error: string };
-  checkOutValidation?: ValidationResult | { error:string };
   verificationStatus: VerificationStatus;
   verificationNotes?: string;
   createdAt: string; // Added for sorting
 };
+
+    

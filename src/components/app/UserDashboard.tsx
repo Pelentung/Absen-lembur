@@ -16,8 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { OvertimeRecord, GeoLocation, VerificationStatus } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
-import { runPhotoValidation } from "@/lib/actions";
-
 
 type UserDashboardProps = {
   activeRecord: OvertimeRecord | null;
@@ -113,40 +111,41 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   };
   
   const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && location) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
   
       if (context) {
-        // Set canvas dimensions
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-  
-        // Draw the video frame onto the canvas
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
   
-        // Add timestamp
         const now = new Date();
         const timestamp = format(now, "d MMM yyyy, HH:mm:ss", { locale: id });
+        const coords = `Lat: ${location.latitude.toFixed(5)}, Lon: ${location.longitude.toFixed(5)}`;
         
-        // Styling the timestamp
-        const fontSize = Math.max(12, Math.floor(canvas.width / 40)); // Responsive font size
+        const fontSize = Math.max(12, Math.floor(canvas.width / 50));
         context.font = `bold ${fontSize}px 'PT Sans', sans-serif`;
-        context.fillStyle = "rgba(255, 255, 255, 0.8)";
+        context.fillStyle = "rgba(255, 255, 255, 0.9)";
         context.shadowColor = "black";
-        context.shadowBlur = 4;
+        context.shadowBlur = 5;
         context.textAlign = 'right';
         const margin = fontSize;
   
-        // Draw the timestamp text on the bottom right
-        context.fillText(timestamp, canvas.width - margin, canvas.height - margin);
+        context.fillText(timestamp, canvas.width - margin, canvas.height - (margin * 2));
+        context.fillText(coords, canvas.width - margin, canvas.height - margin);
         
-        // Get the data URI
-        const dataUri = canvas.toDataURL('image/jpeg', 0.9); // Use JPEG with quality
+        const dataUri = canvas.toDataURL('image/jpeg', 0.9);
         setPhotoPreview(dataUri);
         setShowCamera(false);
       }
+    } else {
+       toast({
+        variant: "destructive",
+        title: "Lokasi belum siap",
+        description: "Tidak bisa mengambil foto karena data lokasi belum tersedia. Mohon tunggu sesaat.",
+      });
     }
   };
 
@@ -190,26 +189,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     setIsPurposeDialogOpen(false);
 
     try {
-      // AI Photo Validation
-      const validationResult = await runPhotoValidation(photoPreview);
-      if (validationResult.error || !validationResult.isPerson || (validationResult.confidence && validationResult.confidence < 0.7)) {
-          toast({
-              variant: "destructive",
-              title: "Validasi Foto Gagal",
-              description: "Sistem mendeteksi foto tidak valid (bukan gambar orang). Mohon ambil foto selfie dengan jelas.",
-          });
-          setIsLoading(false);
-          // Allow user to retake photo
-          setPhotoPreview(null);
-          setShowCamera(true);
-          return;
-      }
-      toast({
-          title: "Validasi Foto Berhasil",
-          description: `Foto terverifikasi sebagai gambar orang dengan keyakinan ${Math.round(validationResult.confidence * 100)}%.`,
-      });
-
-
       const now = new Date().toISOString();
 
       if (isCheckedIn && activeRecord) {
@@ -226,7 +205,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           checkInPhoto: photoPreview,
           checkInLocation: location,
           purpose: purpose,
-          checkInValidation: validationResult
         });
         toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${new Date(now).toLocaleTimeString()}` });
       }
@@ -249,25 +227,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         return <Badge variant="secondary"><Hourglass className="mr-1 h-3 w-3" /> Pending</Badge>;
     }
   };
-
-  const renderValidationInfo = (record: OvertimeRecord) => {
-    const validation = record.checkInValidation;
-    if (!validation) return null;
-
-    if ('error' in validation) {
-      return <p className="text-destructive text-xs">Validasi AI gagal: {validation.error}</p>;
-    }
-
-    if (!validation.isPerson) {
-      return (
-         <div className="flex items-center text-yellow-600 text-xs gap-1">
-          <ShieldAlert className="h-3 w-3"/>
-          <span>AI: Terdeteksi bukan orang ({Math.round(validation.confidence * 100)}%)</span>
-        </div>
-      );
-    }
-    return null;
-  }
 
   const renderPreview = () => {
     const confirmButtonText = isCheckedIn ? "Konfirmasi Cek Out" : "Konfirmasi Cek In";
@@ -292,7 +251,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           <CardFooter>
             <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirm} disabled={isLoading || !location}>
               {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
-              {isLoading ? "Memvalidasi & Menyimpan..." : confirmButtonText}
+              {isLoading ? "Menyimpan..." : confirmButtonText}
             </Button>
           </CardFooter>
         </Card>
@@ -317,7 +276,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           </div>
         </CardContent>
         <CardFooter>
-          <Button size="lg" className="w-full" onClick={capturePhoto}>
+          <Button size="lg" className="w-full" onClick={capturePhoto} disabled={!location}>
             <Camera className="mr-2 h-5 w-5" /> Ambil Gambar
           </Button>
         </CardFooter>
@@ -344,7 +303,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button size="lg" className="w-full h-24 text-lg" onClick={handleTakePhotoClick}>
+          <Button size="lg" className="w-full h-24 text-lg" onClick={handleTakePhotoClick} disabled={!location}>
             <Camera className="mr-4 h-8 w-8" /> {buttonText}
           </Button>
         </CardContent>
@@ -398,7 +357,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                                                 <div className="flex justify-between w-full pr-4 items-center">
                                                     <div className="flex flex-col text-left">
                                                         <span>{format(parseISO(record.checkInTime!), "eeee, d MMM yyyy", { locale: id })}</span>
-                                                        {renderValidationInfo(record)}
                                                     </div>
                                                     {renderVerificationStatus(record.verificationStatus)}
                                                 </div>
@@ -407,7 +365,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                                                  <p><strong>Keterangan:</strong> {record.purpose}</p>
                                                  <p>
                                                     <strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? 
-                                                      formatDistanceToNow(parseISO(record.checkOutTime), { locale: id, addSuffix: false }) + ` (dari ${format(parseISO(record.checkInTime), 'HH:mm')} s/d ${format(parseISO(record.checkOutTime), 'HH:mm')})`
+                                                      `${formatDistanceToNow(parseISO(record.checkOutTime), { locale: id, addSuffix: false, includeSeconds: true })} (dari ${format(parseISO(record.checkInTime), 'HH:mm')} s/d ${format(parseISO(record.checkOutTime), 'HH:mm')})`
                                                       : 'N/A'}
                                                   </p>
                                                 {record.verificationNotes && <p className="text-muted-foreground italic"><strong>Catatan Admin:</strong> {record.verificationNotes}</p>}
