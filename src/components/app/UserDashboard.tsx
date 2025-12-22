@@ -403,5 +403,3 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
 }
 
     
-
-    
