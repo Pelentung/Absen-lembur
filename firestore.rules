@@ -13,14 +13,19 @@ service cloud.firestore {
 
     // Overtime Records
     match /overtimeRecords/{recordId} {
+      // Admins can list all records. Users can query their own records.
+      allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      
+      // Users can get their own records, admins can get any record.
+      allow get: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || resource.data.employeeId == request.auth.uid);
+
       // Authenticated users can create their own records
-      allow create: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.employeeId == request.auth.uid;
       
-      // Users can read their own records, admins can read all records
-      allow read: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || request.auth.uid == resource.data.employeeId);
-      
-      // Users can update their own records, admins can update any record
-      allow update: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || request.auth.uid == resource.data.employeeId);
+      // Users can update their own records for check-out, admins can update any record for verification.
+      allow update: if request.auth != null && 
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+                     (request.auth.uid == resource.data.employeeId && request.resource.data.status == 'Checked Out'));
 
       // Only admins can delete records
       allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
