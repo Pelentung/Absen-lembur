@@ -115,13 +115,37 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
       const context = canvas.getContext('2d');
-      context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-      const dataUri = canvas.toDataURL('image/jpeg');
-      setPhotoPreview(dataUri);
-      setShowCamera(false);
+  
+      if (context) {
+        // Set canvas dimensions
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+  
+        // Draw the video frame onto the canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+        // Add timestamp
+        const now = new Date();
+        const timestamp = format(now, "d MMM yyyy, HH:mm:ss", { locale: id });
+        
+        // Styling the timestamp
+        const fontSize = Math.max(12, Math.floor(canvas.width / 40)); // Responsive font size
+        context.font = `bold ${fontSize}px 'PT Sans', sans-serif`;
+        context.fillStyle = "rgba(255, 255, 255, 0.8)";
+        context.shadowColor = "black";
+        context.shadowBlur = 4;
+        context.textAlign = 'right';
+        const margin = fontSize;
+  
+        // Draw the timestamp text on the bottom right
+        context.fillText(timestamp, canvas.width - margin, canvas.height - margin);
+        
+        // Get the data URI
+        const dataUri = canvas.toDataURL('image/jpeg', 0.9); // Use JPEG with quality
+        setPhotoPreview(dataUri);
+        setShowCamera(false);
+      }
     }
   };
 
