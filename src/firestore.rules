@@ -19,8 +19,13 @@ service cloud.firestore {
       // Authenticated users can create their own records
       allow create: if request.auth != null;
       
-      // Only admins can update or delete records.
-      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      // Users can update their own records for check-out, admins can update any record for verification.
+      allow update: if request.auth != null && 
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
+                    (request.auth.uid == resource.data.employeeId && request.resource.data.keys().hasAll(['status', 'checkOutTime', 'checkOutLocation', 'checkOutPhoto'])));
+
+      // Only admins can delete records
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
   }
 }
