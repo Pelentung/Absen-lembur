@@ -201,8 +201,8 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                 Gunakan AI untuk memvalidasi bahwa foto ini adalah foto orang.
                 {selectedRecord?.purpose && photoToView?.type === 'checkIn' && (
                     <div className="pt-4">
-                        <p className="font-semibold">Keterangan Lembur:</p>
-                        <p className="text-sm text-muted-foreground">{selectedRecord.purpose}</p>
+                        <div className="font-semibold">Keterangan Lembur:</div>
+                        <div className="text-sm text-muted-foreground">{selectedRecord.purpose}</div>
                     </div>
                 )}
               </DialogDescription>
@@ -283,3 +283,5 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
     </Card>
   );
 }
+
+    
