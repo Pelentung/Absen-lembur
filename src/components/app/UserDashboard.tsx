@@ -27,6 +27,7 @@ type UserDashboardProps = {
 };
 
 export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheckOut, userName }: UserDashboardProps) {
+  const [showCamera, setShowCamera] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [location, setLocation] = useState<GeoLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +36,8 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   const [purpose, setPurpose] = useState("");
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
   const isCheckedIn = activeRecord?.status === 'Checked In';
@@ -46,6 +48,39 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Camera error:", err);
+      toast({
+        variant: "destructive",
+        title: "Kamera Error",
+        description: "Tidak bisa mengakses kamera. Mohon berikan izin kamera pada browser.",
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  useEffect(() => {
+    if (showCamera) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => stopCamera();
+  }, [showCamera]);
+
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -73,18 +108,21 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   }, [toast]);
 
   const handleTakePhotoClick = () => {
-    fileInputRef.current?.click();
+    setShowCamera(true);
   };
   
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-              setPhotoPreview(e.target?.result as string);
-          };
-          reader.readAsDataURL(file);
-      }
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      const dataUri = canvas.toDataURL('image/jpeg');
+      setPhotoPreview(dataUri);
+      setShowCamera(false);
+    }
   };
 
   const resetState = () => {
@@ -92,9 +130,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     setIsLoading(false);
     setPurpose("");
     setIsPurposeDialogOpen(false);
-    if(fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setShowCamera(false);
   };
 
   const handleConfirm = () => {
@@ -174,7 +210,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => { setPhotoPreview(null) }} className="h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={() => { setPhotoPreview(null); setShowCamera(true) }} className="h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               Konfirmasi Foto
@@ -186,7 +222,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                 <Image src={photoPreview} alt="Preview" layout="fill" objectFit="cover" />
               </div>
             }
-            <Button variant="outline" onClick={handleTakePhotoClick}>Ambil Ulang Foto</Button>
+            <Button variant="outline" onClick={() => { setPhotoPreview(null); setShowCamera(true) }}>Ambil Ulang Foto</Button>
           </CardContent>
           <CardFooter>
             <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirm} disabled={isLoading || !location}>
@@ -197,11 +233,39 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       );
   }
 
+  const renderCameraView = () => {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setShowCamera(false)} className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            Ambil Foto
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-4">
+          <div className="w-full max-w-sm aspect-square bg-muted rounded-lg overflow-hidden flex items-center justify-center">
+            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button size="lg" className="w-full" onClick={capturePhoto}>
+            <Camera className="mr-2 h-5 w-5" /> Ambil Gambar
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
   const renderActionCard = () => {
     const title = isCheckedIn ? "Cek Out Lembur" : "Cek In Lembur";
     const buttonText = isCheckedIn ? "Ambil Foto Cek Out" : "Ambil Foto Cek In";
 
     if (photoPreview) return renderPreview();
+    if (showCamera) return renderCameraView();
+
 
     return (
       <Card className="text-center">
@@ -214,13 +278,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            onChange={handleFileChange}
-            capture="user"
-          />
           <Button size="lg" className="w-full h-24 text-lg" onClick={handleTakePhotoClick}>
             <Camera className="mr-4 h-8 w-8" /> {buttonText}
           </Button>
@@ -344,5 +401,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     </div>
   );
 }
+
+    
 
     
