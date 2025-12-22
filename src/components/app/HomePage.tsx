@@ -1,15 +1,16 @@
 
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDashboard } from "./UserDashboard";
 import { AdminDashboard } from "./AdminDashboard";
+import { ManageUsers } from "./ManageUsers";
 import { Logo } from "./Logo";
-import type { OvertimeRecord, UserRole } from "@/lib/types";
+import type { OvertimeRecord, UserRole, UserProfile } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -26,22 +27,24 @@ export function HomePage({ userRole }: HomePageProps) {
 
   const recordsQuery = useMemo(() => {
     if (!db || !user) return null;
-    
-    // Admin gets all records
     if (userRole === 'Admin') {
       return query(collection(db, 'overtimeRecords'));
-    } 
-    
-    // Regular users only get their own records
+    }
     return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
-    
   }, [db, user, userRole]);
 
-  
-  const { data: records = [], loading, error } = useCollection<OvertimeRecord>(
-    recordsQuery, 
+  const usersQuery = useMemo(() => {
+    if (!db || userRole !== 'Admin') return null;
+    return query(collection(db, 'users'));
+  }, [db, userRole]);
+
+  const { data: records = [] } = useCollection<OvertimeRecord>(
+    recordsQuery,
     { isRealtime: userRole === 'Admin' }
   );
+  
+  const { data: users = [] } = useCollection<UserProfile>(usersQuery);
+
 
   const [localActiveRecord, setLocalActiveRecord] = useState<OvertimeRecord | null>(null);
 
@@ -117,7 +120,6 @@ export function HomePage({ userRole }: HomePageProps) {
 
     const recordRef = doc(db, 'overtimeRecords', id);
     
-    // Optimistically update the UI
     await updateDoc(recordRef, {
       status: 'Checked Out',
       checkOutTime: new Date(checkOutTime).toISOString(),
@@ -126,7 +128,6 @@ export function HomePage({ userRole }: HomePageProps) {
     });
     setLocalActiveRecord(null);
 
-    // Upload photo in the background
     uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
 
   }, [db]);
@@ -145,6 +146,20 @@ export function HomePage({ userRole }: HomePageProps) {
     await deleteDoc(recordRef);
   }, [db]);
 
+  const handleUpdateUser = useCallback(async (updatedUser: Partial<UserProfile> & { id: string }) => {
+    if (!db) return;
+    const { id, ...dataToUpdate } = updatedUser;
+    const userRef = doc(db, 'users', id);
+    await updateDoc(userRef, dataToUpdate);
+  }, [db]);
+
+  const handleDeleteUser = useCallback(async (userId: string) => {
+    if (!db) return;
+    // Note: This only deletes the Firestore document, not the Firebase Auth user.
+    const userRef = doc(db, 'users', userId);
+    await deleteDoc(userRef);
+  }, [db]);
+
 
   const handleLogout = async () => {
     if(auth) {
@@ -153,7 +168,7 @@ export function HomePage({ userRole }: HomePageProps) {
     router.push('/login');
   };
 
-  const defaultTab = userRole === 'Admin' ? 'admin' : 'user';
+  const defaultTab = userRole === 'Admin' ? 'admin-laporan' : 'user';
 
   return (
     <main className="min-h-screen bg-background">
@@ -174,9 +189,10 @@ export function HomePage({ userRole }: HomePageProps) {
 
         <Tabs defaultValue={defaultTab} className="w-full">
           {userRole === 'Admin' ? (
-            <TabsList className="grid w-full grid-cols-2 md:w-96">
-              <TabsTrigger value="user">Pengguna</TabsTrigger>
-              <TabsTrigger value="admin">Admin</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 md:w-[480px]">
+              <TabsTrigger value="user">Absensi</TabsTrigger>
+              <TabsTrigger value="admin-laporan">Laporan Lembur</TabsTrigger>
+              <TabsTrigger value="admin-users">Kelola Pengguna</TabsTrigger>
             </TabsList>
           ) : (
             <div />
@@ -192,13 +208,22 @@ export function HomePage({ userRole }: HomePageProps) {
             />
           </TabsContent>
           {userRole === 'Admin' && (
-            <TabsContent value="admin" className="mt-6">
-              <AdminDashboard 
-                records={sortedRecords}
-                onUpdateRecord={handleUpdateRecord}
-                onDeleteRecord={handleDeleteRecord}
-              />
-            </TabsContent>
+            <>
+              <TabsContent value="admin-laporan" className="mt-6">
+                <AdminDashboard 
+                  records={sortedRecords}
+                  onUpdateRecord={handleUpdateRecord}
+                  onDeleteRecord={handleDeleteRecord}
+                />
+              </TabsContent>
+              <TabsContent value="admin-users" className="mt-6">
+                <ManageUsers 
+                  users={users}
+                  onUpdateUser={handleUpdateUser}
+                  onDeleteUser={handleDeleteUser}
+                />
+              </TabsContent>
+            </>
           )}
         </Tabs>
       </div>

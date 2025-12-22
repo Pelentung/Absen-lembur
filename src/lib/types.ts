@@ -15,6 +15,7 @@ export type VerificationStatus = 'Pending' | 'Accepted' | 'Rejected';
 export type UserRole = 'Admin' | 'User';
 
 export type UserProfile = {
+  id: string; // Document ID from Firestore
   uid: string;
   email: string;
   name: string;
