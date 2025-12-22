@@ -287,7 +287,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                   {new Date(activeRecord.checkInTime).toLocaleTimeString()}
                 </span>
                 {activeRecord?.purpose && (
-                    <p className="text-sm text-muted-foreground">Keterangan: {activeRecord.purpose}</p>
+                    <div className="text-sm text-muted-foreground">Keterangan: {activeRecord.purpose}</div>
                 )}
               </span>
             </>
@@ -333,3 +333,5 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     </div>
   );
 }
+
+    
