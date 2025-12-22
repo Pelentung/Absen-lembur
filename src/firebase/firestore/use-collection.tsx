@@ -9,7 +9,7 @@ export function useCollection<T>(
   q: Query | null,
   options?: { isRealtime?: boolean }
 ) {
-  const [data, setData] = useState<T[] | null>(null);
+  const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const isRealtime = options?.isRealtime ?? true;

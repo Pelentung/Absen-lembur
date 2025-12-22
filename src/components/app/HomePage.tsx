@@ -26,15 +26,18 @@ export function HomePage({ userRole }: HomePageProps) {
 
   const recordsQuery = useMemo(() => {
     if (!db || !user) return null;
+    if (userRole === 'Admin') {
+      return query(collection(db, 'overtimeRecords'));
+    }
     return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
-  }, [db, user]);
+  }, [db, user, userRole]);
 
   const usersQuery = useMemo(() => {
     if (!db || userRole !== 'Admin') return null;
     return query(collection(db, 'users'));
   }, [db, userRole]);
 
-  const { data: records = [] } = useCollection<OvertimeRecord>(recordsQuery);
+  const { data: records = [] } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: userRole === 'Admin' });
   
   const { data: users = [] } = useCollection<UserProfile>(usersQuery);
 
@@ -190,7 +193,7 @@ export function HomePage({ userRole }: HomePageProps) {
             <>
               <TabsContent value="admin-users" className="mt-6">
                 <ManageUsers 
-                  users={users}
+                  users={users ?? []}
                   onUpdateUser={handleUpdateUser}
                   onDeleteUser={handleDeleteUser}
                 />
