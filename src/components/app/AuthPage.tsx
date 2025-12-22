@@ -78,10 +78,19 @@ export function AuthPage() {
       }
     } catch (error: any) {
       console.error(error);
+      let description = 'Terjadi kesalahan. Silakan coba lagi.';
+      if (error.code === 'auth/invalid-credential') {
+        description = 'Email atau password yang Anda masukkan salah. Mohon periksa kembali.';
+      } else if (error.code === 'auth/email-already-in-use') {
+        description = 'Email ini sudah terdaftar. Silakan gunakan email lain atau masuk.';
+      } else if (error.message) {
+        description = error.message;
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Terjadi Kesalahan',
-        description: error.message,
+        description: description,
       });
     } finally {
       setIsLoading(false);
