@@ -67,12 +67,15 @@ export function HomePage({ userRole }: HomePageProps) {
     [sortedRecords, user]
   );
 
-  const uploadPhotoAndUpdateRecord = useCallback(async (photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut') => {
+  const uploadPhotoAndUpdateRecord = useCallback((photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut') => {
     if (!db) return;
-    const storage = getStorage();
-    const storageRef = ref(storage, `overtime_photos/${recordId}_${type}.jpg`);
-    
-    try {
+
+    // Run this process in the background without blocking the UI
+    (async () => {
+      try {
+        const storage = getStorage();
+        const storageRef = ref(storage, `overtime_photos/${recordId}_${type}.jpg`);
+        
         await uploadString(storageRef, photoDataUri, 'data_url');
         const downloadURL = await getDownloadURL(storageRef);
 
@@ -82,25 +85,25 @@ export function HomePage({ userRole }: HomePageProps) {
             : { checkOutPhoto: downloadURL };
             
         await updateDoc(recordRef, fieldToUpdate);
-
-        return downloadURL;
-    } catch(error) {
-        console.error(`Error uploading ${type} photo and updating record:`, error);
-        // Optionally re-throw or handle the error, e.g., by showing a toast
-    }
+      } catch (error) {
+        console.error(`Error in background photo upload for ${type}:`, error);
+        // This error happens in the background and won't block the user.
+        // You could potentially add a background retry mechanism or logging service here.
+      }
+    })();
   }, [db]);
 
   const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
     if (!db || !user || !userName) return;
     
     const createdAt = new Date().toISOString();
-    const temporaryPhoto = newRecordData.checkInPhoto; // This is the data URI
+    const temporaryPhoto = newRecordData.checkInPhoto;
     
     const initialRecord: Omit<OvertimeRecord, 'id'> = {
       ...newRecordData,
       employeeId: user.uid,
       employeeName: userName,
-      checkInPhoto: null, // Will be updated with URL from storage
+      checkInPhoto: null, // Firestore will store null initially
       status: 'Checked In',
       checkOutTime: null,
       checkOutPhoto: null,
@@ -110,6 +113,7 @@ export function HomePage({ userRole }: HomePageProps) {
     };
     
     try {
+      // This is the only part the user's device waits for. It's very fast.
       const docRef = await addDoc(collection(db, 'overtimeRecords'), initialRecord);
       
       const finalRecord: OvertimeRecord = {
@@ -119,12 +123,13 @@ export function HomePage({ userRole }: HomePageProps) {
       };
       setLocalActiveRecord(finalRecord);
 
-      // Upload photo and update the doc with the real URL in the background
+      // Start upload in the background. Note the absence of 'await'.
       if (temporaryPhoto) {
-        await uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
+        uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
       }
     } catch (error) {
       console.error("Error during check-in:", error);
+      throw error; // Re-throw to be caught by the UI
     }
 
   }, [db, user, userName, uploadPhotoAndUpdateRecord]);
@@ -138,17 +143,19 @@ export function HomePage({ userRole }: HomePageProps) {
     setLocalActiveRecord(null);
     
     try {
-      // Update the document with checkout time, location, and status.
+      // This part is very fast.
       await updateDoc(recordRef, {
         status: 'Checked Out',
         checkOutTime: new Date(checkOutTime).toISOString(),
         checkOutLocation,
+        checkOutPhoto: null, // Set to null initially
       });
 
-      // Upload photo and update the doc with the final URL in the background
-      await uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
+      // Start upload in the background. Note the absence of 'await'.
+      uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
     } catch (error) {
       console.error("Error during check-out:", error);
+      throw error; // Re-throw to be caught by the UI
     }
 
   }, [db, uploadPhotoAndUpdateRecord]);
@@ -191,7 +198,7 @@ export function HomePage({ userRole }: HomePageProps) {
     <main className="min-h-screen bg-background">
       <div className="container mx-auto p-4 md:p-8">
         <header className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
-            <div className="flex flex-col items-center text-center md:flex-row md:text-left gap-4">
+            <div className="flex flex-col items-center text-center gap-4">
                 <Logo className="h-16 w-16 text-primary" />
                 <div>
                     <h1 className="text-3xl font-bold font-headline text-primary">ABSENSI LEMBUR</h1>
@@ -254,5 +261,3 @@ export function HomePage({ userRole }: HomePageProps) {
     </main>
   );
 }
-
-    
