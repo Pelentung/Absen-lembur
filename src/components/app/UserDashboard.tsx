@@ -20,8 +20,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 type UserDashboardProps = {
   activeRecord: OvertimeRecord | null;
   historyRecords: OvertimeRecord[];
-  onCheckIn: (record: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => void;
-  onCheckOut: (record: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => void;
+  onCheckIn: (record: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => Promise<void>;
+  onCheckOut: (record: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => Promise<void>;
   userName: string;
 };
 
@@ -181,7 +181,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       const now = new Date().toISOString();
 
       if (isCheckedIn && activeRecord) {
-        onCheckOut({
+        await onCheckOut({
           id: activeRecord.id,
           checkOutTime: now,
           checkOutPhoto: photoPreview,
@@ -189,7 +189,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         });
         toast({ title: "Sukses Cek Out", description: `Anda berhasil cek out pada ${new Date(now).toLocaleTimeString()}` });
       } else {
-        onCheckIn({
+        await onCheckIn({
           employeeName: userName,
           checkInTime: now,
           checkInPhoto: photoPreview,
@@ -222,7 +222,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setView('idle')} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={() => { setView('idle'); stopCameraStream(); }} className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             Ambil Foto
@@ -255,7 +255,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setView('idle')} className="h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={() => { setView('idle'); stopCameraStream(); }} className="h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               Konfirmasi Foto
@@ -333,7 +333,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                 </AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
                   <p><strong>Keterangan:</strong> {record.purpose}</p>
-                  <p><strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? formatDistanceToNow(new Date(record.checkInTime), { locale: id, includeSeconds: true }).replace('sekitar ','') : 'N/A'}</p>
+                  <p><strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? formatDistanceToNow(new Date(record.checkOutTime), { locale: id, addSuffix: true }).replace('yang lalu', '') + ` dari ${formatDistanceToNow(new Date(record.checkInTime), { locale: id, addSuffix: false })}` : 'N/A'}</p>
                   <p><strong>Cek In:</strong> {record.checkInTime ? new Date(record.checkInTime).toLocaleString('id-ID') : '-'}</p>
                   <p><strong>Cek Out:</strong> {record.checkOutTime ? new Date(record.checkOutTime).toLocaleString('id-ID') : '-'}</p>
                   {record.verificationNotes && <p className="text-muted-foreground italic"><strong>Catatan Admin:</strong> {record.verificationNotes}</p>}

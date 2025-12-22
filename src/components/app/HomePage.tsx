@@ -26,6 +26,8 @@ export function HomePage({ userRole }: HomePageProps) {
   
   const { data: records = [], loading, error } = useCollection<OvertimeRecord>(db ? collection(db, 'overtimeRecords') : null);
 
+  const [localActiveRecord, setLocalActiveRecord] = useState<OvertimeRecord | null>(null);
+
   const sortedRecords = useMemo(() => {
     if (!records) return [];
     return [...records].sort((a, b) => {
@@ -36,8 +38,8 @@ export function HomePage({ userRole }: HomePageProps) {
   }, [records]);
 
   const activeUserRecord = useMemo(() => 
-    sortedRecords.find(r => r.employeeName === userName && r.status === "Checked In") ?? null, 
-    [sortedRecords, userName]
+    localActiveRecord ?? sortedRecords.find(r => r.employeeName === userName && r.status === "Checked In") ?? null, 
+    [sortedRecords, userName, localActiveRecord]
   );
   
   const userHistory = useMemo(() =>
@@ -57,17 +59,20 @@ export function HomePage({ userRole }: HomePageProps) {
     const docRef = await addDoc(collection(db, 'overtimeRecords'), { ...newRecordData, status: 'Pending' });
     const checkInPhotoUrl = newRecordData.checkInPhoto ? await uploadPhoto(newRecordData.checkInPhoto, docRef.id, 'checkIn') : null;
     
-    const newRecord = {
+    const createdAt = new Date().toISOString();
+    const finalRecord: OvertimeRecord = {
+      id: docRef.id,
       ...newRecordData,
       checkInPhoto: checkInPhotoUrl,
-      status: 'Checked In' as const,
+      status: 'Checked In',
       checkOutTime: null,
       checkOutPhoto: null,
       checkOutLocation: null,
-      verificationStatus: 'Pending' as const,
-      createdAt: new Date().toISOString(),
+      verificationStatus: 'Pending',
+      createdAt: createdAt,
     };
-    await updateDoc(docRef, newRecord);
+    await updateDoc(docRef, finalRecord);
+    setLocalActiveRecord(finalRecord);
   }, [db]);
 
   const handleCheckOut = useCallback(async ({ id, checkOutTime, checkOutPhoto, checkOutLocation }: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
@@ -82,6 +87,7 @@ export function HomePage({ userRole }: HomePageProps) {
       checkOutPhoto: checkOutPhotoUrl,
       checkOutLocation,
     });
+    setLocalActiveRecord(null);
   }, [db]);
 
   const handleUpdateRecord = useCallback(async (updatedRecord: Partial<OvertimeRecord> & { id: string }) => {

@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import { format, formatDistanceToNow, isToday, isThisWeek, isThisMonth } from "date-fns";
+import { format, formatDistance, isToday, isThisWeek, isThisMonth } from "date-fns";
 import { id } from 'date-fns/locale';
 import {
   Table,
@@ -123,6 +123,10 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
     }
   };
 
+  const calculateDuration = (checkIn: string, checkOut: string): string => {
+    return formatDistance(new Date(checkOut), new Date(checkIn), { locale: id });
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -159,8 +163,8 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
                         <TableCell>{record.checkInTime ? format(new Date(record.checkInTime), 'P', { locale: id }) : '-'}</TableCell>
                         <TableCell>
                           {record.checkInTime && record.checkOutTime
-                            ? formatDistanceToNow(new Date(record.checkInTime), { locale: id, includeSeconds: true, addSuffix: true }).replace('sekitar ', '')
-                            : (record.checkInTime ? `${new Date(record.checkInTime).toLocaleTimeString()} - ...` : '-')}
+                            ? calculateDuration(record.checkInTime, record.checkOutTime)
+                            : (record.checkInTime ? `${new Date(record.checkInTime).toLocaleTimeString('id-ID')} - ...` : '-')}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate">{record.purpose ?? '-'}</TableCell>
                         <TableCell className="text-center">
@@ -261,7 +265,7 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
               <div className="space-y-4 py-4">
                 <p><strong>Karyawan:</strong> {selectedRecord.employeeName}</p>
                 <p><strong>Keterangan:</strong> {selectedRecord.purpose}</p>
-                <p><strong>Durasi:</strong> {selectedRecord.checkInTime && selectedRecord.checkOutTime ? formatDistanceToNow(new Date(selectedRecord.checkInTime), { locale: id, includeSeconds: true, addSuffix: true }).replace('sekitar ','') : 'N/A'}</p>
+                <p><strong>Durasi:</strong> {selectedRecord.checkInTime && selectedRecord.checkOutTime ? calculateDuration(selectedRecord.checkInTime, selectedRecord.checkOutTime) : 'N/A'}</p>
                 <Textarea 
                   placeholder="Tambahkan catatan (opsional)..."
                   value={verificationNotes}
@@ -283,5 +287,3 @@ export function AdminDashboard({ records, onUpdateRecord }: AdminDashboardProps)
     </Card>
   );
 }
-
-    
