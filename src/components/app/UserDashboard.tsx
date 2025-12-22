@@ -35,12 +35,20 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   const [isPurposeDialogOpen, setIsPurposeDialogOpen] = useState(false);
   const [purpose, setPurpose] = useState("");
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  
+  const [currentDate, setCurrentDate] = useState(new Date());
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
   const isCheckedIn = activeRecord?.status === 'Checked In';
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -327,6 +335,16 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     <div className="space-y-6">
       <Card>
         <CardHeader>
+          <CardTitle>Waktu Saat Ini</CardTitle>
+        </CardHeader>
+        <CardContent className="text-center">
+            <p className="text-3xl font-bold tracking-wider">{format(currentDate, "HH:mm:ss")}</p>
+            <p className="text-muted-foreground">{format(currentDate, "eeee, d MMMM yyyy", { locale: id })}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Status Kehadiran</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center gap-4 text-lg">
@@ -385,5 +403,3 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     </div>
   );
 }
-
-    
