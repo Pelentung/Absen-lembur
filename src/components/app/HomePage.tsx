@@ -42,7 +42,8 @@ export function HomePage({ userRole }: HomePageProps) {
   }, [db, userRole]);
 
   const { data: records } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: true });
-  const { data: users } = useCollection<UserProfile>(usersQuery, { isRealtime: true });
+  const { data: usersData } = useCollection<UserProfile>(usersQuery, { isRealtime: true });
+  const users = usersData ?? [];
 
 
   const [localActiveRecord, setLocalActiveRecord] = useState<OvertimeRecord | null>(null);
@@ -66,7 +67,7 @@ export function HomePage({ userRole }: HomePageProps) {
     [sortedRecords, user]
   );
 
-  const uploadPhotoAndUpdateRecord = async (photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut') => {
+  const uploadPhotoAndUpdateRecord = useCallback(async (photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut') => {
     if (!db) return;
     const storage = getStorage();
     const storageRef = ref(storage, `overtime_photos/${recordId}_${type}.jpg`);
@@ -83,7 +84,7 @@ export function HomePage({ userRole }: HomePageProps) {
     } catch(error) {
         console.error(`Error uploading ${type} photo and updating record:`, error);
     }
-  };
+  }, [db]);
 
   const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
     if (!db || !user || !userName) return;
@@ -115,10 +116,10 @@ export function HomePage({ userRole }: HomePageProps) {
 
     // Upload photo in the background and update firestore doc
     if (temporaryPhoto) {
-      uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
+      await uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
     }
 
-  }, [db, user, userName]);
+  }, [db, user, userName, uploadPhotoAndUpdateRecord]);
 
   const handleCheckOut = useCallback(async ({ id, checkOutTime, checkOutPhoto, checkOutLocation }: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
     if (!db || !checkOutTime || !checkOutPhoto) return;
@@ -136,9 +137,9 @@ export function HomePage({ userRole }: HomePageProps) {
     });
 
     // Upload photo in the background and update the doc with the final URL
-    uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
+    await uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
 
-  }, [db]);
+  }, [db, uploadPhotoAndUpdateRecord]);
 
 
   const handleUpdateUser = useCallback(async (updatedUser: Partial<UserProfile> & { id: string }) => {
@@ -177,8 +178,8 @@ export function HomePage({ userRole }: HomePageProps) {
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto p-4 md:p-8">
-        <header className="flex items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-4">
+        <header className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+            <div className="flex flex-col items-center text-center md:flex-row md:text-left gap-4">
                 <Logo className="h-16 w-16 text-primary" />
                 <div>
                     <h1 className="text-3xl font-bold font-headline text-primary">ABSENSI LEMBUR</h1>
@@ -223,7 +224,7 @@ export function HomePage({ userRole }: HomePageProps) {
               </TabsContent>
               <TabsContent value="admin-users" className="mt-6">
                 <ManageUsers 
-                  users={users ?? []}
+                  users={users}
                   onUpdateUser={handleUpdateUser}
                   onDeleteUser={handleDeleteUser}
                 />
@@ -231,7 +232,7 @@ export function HomePage({ userRole }: HomePageProps) {
               <TabsContent value="admin-report" className="mt-6">
                 <AdminReport 
                   records={sortedRecords}
-                  users={users ?? []}
+                  users={users}
                 />
               </TabsContent>
             </>

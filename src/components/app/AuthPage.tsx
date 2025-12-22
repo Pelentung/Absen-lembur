@@ -98,7 +98,7 @@ export function AuthPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex flex-col items-center text-center gap-4 mb-8">
         <Logo className="h-16 w-16 text-primary" />
         <div>
           <h1 className="text-3xl font-bold font-headline text-primary">ABSENSI LEMBUR</h1>
