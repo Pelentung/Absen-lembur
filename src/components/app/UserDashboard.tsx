@@ -285,7 +285,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                {location ? `Lat: ${location.latitude.toFixed(4)}, Lon: ${location.longitude.toFixed(4)}` : "Mencari lokasi..."}
+                {location ? `Koordinat: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}` : "Mencari lokasi..."}
             </div>
             {locationError && <p className="text-destructive text-xs">{locationError}</p>}
         </CardFooter>
@@ -401,5 +401,3 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     </div>
   );
 }
-
-    
