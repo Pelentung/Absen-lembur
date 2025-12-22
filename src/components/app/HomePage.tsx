@@ -68,13 +68,19 @@ export function HomePage({ userRole }: HomePageProps) {
     if (!db) return;
     const storage = getStorage();
     const storageRef = ref(storage, `overtime_photos/${recordId}_${type}.jpg`);
-    await uploadString(storageRef, photoDataUri, 'data_url');
-    const downloadURL = await getDownloadURL(storageRef);
+    
+    try {
+        await uploadString(storageRef, photoDataUri, 'data_url');
+        const downloadURL = await getDownloadURL(storageRef);
 
-    const recordRef = doc(db, 'overtimeRecords', recordId);
-    const fieldToUpdate = type === 'checkIn' ? { checkInPhoto: downloadURL } : { checkOutPhoto: downloadURL };
-    await updateDoc(recordRef, fieldToUpdate);
-    return downloadURL;
+        const recordRef = doc(db, 'overtimeRecords', recordId);
+        const fieldToUpdate = type === 'checkIn' ? { checkInPhoto: downloadURL } : { checkOutPhoto: downloadURL };
+        await updateDoc(recordRef, fieldToUpdate);
+
+        return downloadURL;
+    } catch(error) {
+        console.error(`Error uploading ${type} photo and updating record:`, error);
+    }
   };
 
   const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
@@ -105,7 +111,7 @@ export function HomePage({ userRole }: HomePageProps) {
     };
     setLocalActiveRecord(finalRecord);
 
-    // Upload photo in the background
+    // Upload photo in the background and update firestore doc
     if (temporaryPhoto) {
       uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
     }
@@ -117,14 +123,17 @@ export function HomePage({ userRole }: HomePageProps) {
 
     const recordRef = doc(db, 'overtimeRecords', id);
     
+    // Optimistically update the local state to show it's checked out
+    setLocalActiveRecord(null);
+    
+    // Update the document with checkout time, location, and a temporary status. Photo URL will be updated in the background.
     await updateDoc(recordRef, {
       status: 'Checked Out',
       checkOutTime: new Date(checkOutTime).toISOString(),
       checkOutLocation,
-      checkOutPhoto: null, // Will be updated in the background
     });
-    setLocalActiveRecord(null);
 
+    // Upload photo in the background and update the doc with the final URL
     uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
 
   }, [db]);
@@ -211,7 +220,7 @@ export function HomePage({ userRole }: HomePageProps) {
               </TabsContent>
               <TabsContent value="admin-users" className="mt-6">
                 <ManageUsers 
-                  users={users}
+                  users={users ?? []}
                   onUpdateUser={handleUpdateUser}
                   onDeleteUser={handleDeleteUser}
                 />
@@ -219,7 +228,7 @@ export function HomePage({ userRole }: HomePageProps) {
               <TabsContent value="admin-report" className="mt-6">
                 <AdminReport 
                   records={sortedRecords}
-                  users={users}
+                  users={users ?? []}
                 />
               </TabsContent>
             </>
