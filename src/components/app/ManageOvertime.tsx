@@ -166,25 +166,29 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="flex justify-around gap-4 text-center">
-                        <div>
-                            <h4 className="font-semibold mb-2">Foto Cek In</h4>
-                            {selectedRecord?.checkInPhoto ? (
-                                <div className="relative w-48 h-48 rounded-lg overflow-hidden border">
-                                    <Image src={selectedRecord.checkInPhoto} alt="Cek In" layout="fill" objectFit="cover" />
-                                </div>
-                            ) : <p className="text-sm text-muted-foreground">Tidak ada foto</p>}
-                        </div>
-                        <div>
-                            <h4 className="font-semibold mb-2">Foto Cek Out</h4>
-                            {selectedRecord?.checkOutPhoto ? (
-                                <div className="relative w-48 h-48 rounded-lg overflow-hidden border">
-                                    <Image src={selectedRecord.checkOutPhoto} alt="Cek Out" layout="fill" objectFit="cover" />
-                                </div>
-                            ) : <p className="text-sm text-muted-foreground">Tidak ada foto</p>}
-                        </div>
-                    </div>
-                     <div className="grid w-full items-center gap-2">
+                  <div className="flex justify-around gap-4 text-center">
+                      <div>
+                          <h4 className="font-semibold mb-2">Lokasi Cek In</h4>
+                          {selectedRecord?.checkInLocation ? (
+                              <Button asChild variant="outline">
+                                  <a href={`https://www.google.com/maps/search/?api=1&query=${selectedRecord.checkInLocation.latitude},${selectedRecord.checkInLocation.longitude}`} target="_blank" rel="noopener noreferrer">
+                                      <MapPin className="mr-2 h-4 w-4" /> Lihat Lokasi
+                                  </a>
+                              </Button>
+                          ) : <p className="text-sm text-muted-foreground">Tidak ada lokasi</p>}
+                      </div>
+                      <div>
+                          <h4 className="font-semibold mb-2">Lokasi Cek Out</h4>
+                          {selectedRecord?.checkOutLocation ? (
+                              <Button asChild variant="outline">
+                                  <a href={`https://www.google.com/maps/search/?api=1&query=${selectedRecord.checkOutLocation.latitude},${selectedRecord.checkOutLocation.longitude}`} target="_blank" rel="noopener noreferrer">
+                                      <MapPin className="mr-2 h-4 w-4" /> Lihat Lokasi
+                                  </a>
+                              </Button>
+                          ) : <p className="text-sm text-muted-foreground">Tidak ada lokasi</p>}
+                      </div>
+                  </div>
+                   <div className="grid w-full items-center gap-2">
                         <Label htmlFor="verificationNotes">Catatan (Opsional)</Label>
                         <Textarea 
                           id="verificationNotes" 
