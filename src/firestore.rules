@@ -20,7 +20,9 @@ service cloud.firestore {
                    resource.data.employeeId == request.auth.uid);
       
       // Admins can list all records. Users can query for their own records.
-      allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow list: if request.auth != null && 
+                   (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
+                    request.query.where.get('employeeId')[2] == request.auth.uid);
 
       // Authenticated users can create their own records.
       // The employeeId in the new document must match the creator's UID.
