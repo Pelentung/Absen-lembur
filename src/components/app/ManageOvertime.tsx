@@ -167,24 +167,34 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="flex justify-around gap-4 text-center">
-                      <div>
-                          <h4 className="font-semibold mb-2">Lokasi Cek In</h4>
+                      <div className="space-y-2">
+                          <h4 className="font-semibold">Lokasi Cek In</h4>
                           {selectedRecord?.checkInLocation ? (
+                            <>
                               <Button asChild variant="outline">
                                   <a href={`https://www.google.com/maps/search/?api=1&query=${selectedRecord.checkInLocation.latitude},${selectedRecord.checkInLocation.longitude}`} target="_blank" rel="noopener noreferrer">
                                       <MapPin className="mr-2 h-4 w-4" /> Lihat Lokasi
                                   </a>
                               </Button>
+                              <p className="text-xs text-muted-foreground">
+                                {selectedRecord.checkInLocation.latitude.toFixed(6)}, {selectedRecord.checkInLocation.longitude.toFixed(6)}
+                              </p>
+                            </>
                           ) : <p className="text-sm text-muted-foreground">Tidak ada lokasi</p>}
                       </div>
-                      <div>
-                          <h4 className="font-semibold mb-2">Lokasi Cek Out</h4>
+                      <div className="space-y-2">
+                          <h4 className="font-semibold">Lokasi Cek Out</h4>
                           {selectedRecord?.checkOutLocation ? (
+                            <>
                               <Button asChild variant="outline">
                                   <a href={`https://www.google.com/maps/search/?api=1&query=${selectedRecord.checkOutLocation.latitude},${selectedRecord.checkOutLocation.longitude}`} target="_blank" rel="noopener noreferrer">
                                       <MapPin className="mr-2 h-4 w-4" /> Lihat Lokasi
                                   </a>
                               </Button>
+                              <p className="text-xs text-muted-foreground">
+                                {selectedRecord.checkOutLocation.latitude.toFixed(6)}, {selectedRecord.checkOutLocation.longitude.toFixed(6)}
+                              </p>
+                            </>
                           ) : <p className="text-sm text-muted-foreground">Tidak ada lokasi</p>}
                       </div>
                   </div>
