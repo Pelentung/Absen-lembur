@@ -202,7 +202,7 @@ export function HomePage({ userRole }: HomePageProps) {
                 <Logo className="h-16 w-16 text-primary" />
                 <div>
                     <h1 className="text-3xl font-bold font-headline text-primary">ABSENSI LEMBUR</h1>
-                    <p className="text-muted-foreground">Dinas Perumahan Kawasan Permukiman Cipta Karya dan Tata Ruang Kota Medan</p>
+                    <p className="font-bold text-primary">Dinas Perumahan Kawasan Permukiman Cipta Karya dan Tata Ruang Kota Medan</p>
                 </div>
             </div>
             <div className="flex items-center gap-4">
