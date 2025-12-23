@@ -379,6 +379,8 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
             <p className="text-muted-foreground">{format(currentDate, "eeee, d MMMM yyyy", { locale: id })}</p>
         </CardContent>
       </Card>
+      
+      {renderActionCard()}
 
       <Card>
         <CardHeader>
@@ -403,8 +405,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           )}
         </CardContent>
       </Card>
-
-      {renderActionCard()}
 
       {renderHistory()}
 
