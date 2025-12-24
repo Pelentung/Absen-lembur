@@ -60,8 +60,8 @@ export function AuthPage() {
           password
         );
         const user = userCredential.user;
-        const normalizedJabatan = jabatan.trim().toUpperCase();
-        const role = normalizedJabatan === 'ADMIN' ? 'Admin' : 'User';
+        // Corrected role assignment to be case-insensitive
+        const role = jabatan.trim().toUpperCase() === 'ADMIN' ? 'Admin' : 'User';
         
         // Move to the home page immediately
         toast({ title: 'Pendaftaran Berhasil!', description: 'Anda akan dialihkan ke halaman utama.' });
@@ -208,7 +208,7 @@ export function AuthPage() {
                 <Input
                   id="register-jabatan"
                   type="text"
-                  placeholder="Jabatan Anda"
+                  placeholder="Jabatan Anda (isi 'Admin' untuk peran admin)"
                   value={jabatan}
                   onChange={(e) => setJabatan(e.target.value)}
                   required
