@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
-import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap, ThumbsUp, ThumbsDown, Hourglass, History, FileUp, ShieldAlert } from "lucide-react";
+import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap, ThumbsUp, ThumbsDown, Hourglass, History, FileUp, ShieldAlert, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -193,7 +193,10 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         });
         toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${new Date(now).toLocaleTimeString()}` });
       }
-      resetState();
+      // Do not reset state for check-out to show the finished message
+      if (!isCheckedIn) {
+        resetState();
+      }
     } catch (error) {
       console.error("Submit error:", error);
       toast({ variant: "destructive", title: "Terjadi Kesalahan", description: "Gagal menyimpan data." });
@@ -268,8 +271,27 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       </Card>
     );
   }
+  
+  const lastRecord = historyRecords[0];
+  const justCheckedOut = lastRecord && lastRecord.status === 'Checked Out' && !activeRecord;
+
 
   const renderActionCard = () => {
+    if (justCheckedOut) {
+      return (
+        <Card className="text-center bg-green-50 border-green-200">
+          <CardHeader>
+            <CardTitle className="flex justify-center items-center gap-2 text-green-800">
+              <CheckCircle /> Sesi Selesai
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-green-700">Anda telah berhasil melakukan Check Out. Terima kasih!</p>
+          </CardContent>
+        </Card>
+      );
+    }
+  
     const title = isCheckedIn ? "Cek Out Lembur" : "Cek In Lembur";
     const buttonText = isCheckedIn ? "Ambil Foto Cek Out" : "Ambil Foto Cek In";
 
@@ -319,7 +341,16 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
 
     const monthKeys = Object.keys(recordsByMonth);
 
+    if (monthKeys.length === 0 && !activeRecord) return (
+      <Card>
+        <CardContent className="pt-6 text-center text-muted-foreground">
+          Belum ada riwayat lembur yang tercatat.
+        </CardContent>
+      </Card>
+    );
+
     if (monthKeys.length === 0) return null;
+
 
     return (
         <Card>
@@ -401,7 +432,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
               </span>
             </>
           ) : (
-            <span className="text-muted-foreground">Anda belum melakukan Cek In.</span>
+            <span className="text-muted-foreground">Anda belum melakukan Cek In hari ini.</span>
           )}
         </CardContent>
       </Card>
@@ -440,3 +471,5 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     </div>
   );
 }
+
+    
