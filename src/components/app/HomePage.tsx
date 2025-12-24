@@ -11,7 +11,7 @@ import { AdminReport } from "./AdminReport";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole, UserProfile, VerificationStatus } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -24,12 +24,10 @@ type HomePageProps = {
 
 export function HomePage({ userRole }: HomePageProps) {
   const { db } = useFirestore();
-  const { user, name: userName, role } = useUser();
+  const { user, name: userName, role, loading: userLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
 
-  const [recordsLoading, setRecordsLoading] = useState(true);
-  const [usersLoading, setUsersLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   const overtimeQuery = useMemo(() => {
@@ -48,16 +46,9 @@ export function HomePage({ userRole }: HomePageProps) {
     return query(collection(db, 'users'));
   }, [db, role]);
 
-  const { data: records = [], loading: recordsAreLoading, refetch: refetchRecords } = useCollection<OvertimeRecord>(overtimeQuery);
-  const { data: users = [], loading: usersAreLoading, refetch: refetchUsers } = useCollection<UserProfile>(usersQuery);
+  const { data: records = [], loading: recordsLoading, refetch: refetchRecords } = useCollection<OvertimeRecord>(overtimeQuery);
+  const { data: users = [], loading: usersLoading, refetch: refetchUsers } = useCollection<UserProfile>(usersQuery);
 
-  useEffect(() => {
-    setRecordsLoading(recordsAreLoading);
-  }, [recordsAreLoading]);
-
-  useEffect(() => {
-    setUsersLoading(usersAreLoading);
-  }, [usersAreLoading]);
 
   const sortedRecords = useMemo(() => {
     if (!records) return [];
@@ -191,6 +182,13 @@ export function HomePage({ userRole }: HomePageProps) {
     await refetchRecords();
   }, [db, refetchRecords]);
 
+  const handleDeleteOvertime = useCallback(async (recordId: string) => {
+    if (!db) return;
+    const recordRef = doc(db, 'overtimeRecords', recordId);
+    await deleteDoc(recordRef);
+    await refetchRecords();
+  }, [db, refetchRecords]);
+
 
   const handleLogout = async () => {
     if(auth) {
@@ -200,6 +198,8 @@ export function HomePage({ userRole }: HomePageProps) {
   };
 
   const defaultTab = userRole === 'Admin' ? 'admin-overtime' : 'user';
+  
+  const isLoading = userLoading || recordsLoading || (role === 'Admin' && usersLoading);
 
   return (
     <main className="min-h-screen bg-background">
@@ -238,7 +238,7 @@ export function HomePage({ userRole }: HomePageProps) {
               onCheckIn={handleCheckIn}
               onCheckOut={handleCheckOut}
               userName={userName ?? 'Pengguna'}
-              isLoading={recordsLoading}
+              isLoading={isLoading}
               isActionLoading={isActionLoading}
             />
           </TabsContent>
@@ -248,6 +248,8 @@ export function HomePage({ userRole }: HomePageProps) {
                 <ManageOvertime 
                   records={sortedRecords}
                   onUpdateStatus={handleUpdateOvertimeStatus}
+                  onDeleteRecord={handleDeleteOvertime}
+                  isLoading={isLoading}
                 />
               </TabsContent>
               <TabsContent value="admin-users" className="mt-6">
@@ -262,7 +264,7 @@ export function HomePage({ userRole }: HomePageProps) {
                 <AdminReport 
                   records={sortedRecords}
                   users={users}
-                  isLoading={recordsLoading || usersLoading}
+                  isLoading={isLoading}
                 />
               </TabsContent>
             </>
@@ -272,5 +274,3 @@ export function HomePage({ userRole }: HomePageProps) {
     </main>
   );
 }
-
-    

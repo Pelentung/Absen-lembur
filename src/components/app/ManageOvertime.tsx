@@ -23,25 +23,39 @@ import {
   DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Camera, Check, X, MapPin, Clock } from "lucide-react";
+import { Loader2, Camera, Check, X, MapPin, Clock, Trash2 } from "lucide-react";
 import type { OvertimeRecord, VerificationStatus } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 type ManageOvertimeProps = {
   records: OvertimeRecord[];
-  onUpdateStatus: (recordId: string, status: VerificationStatus, notes?: string) => void;
+  onUpdateStatus: (recordId: string, status: VerificationStatus, notes?: string) => Promise<void>;
+  onDeleteRecord: (recordId: string) => Promise<void>;
+  isLoading: boolean;
 };
 
-export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeProps) {
+export function ManageOvertime({ records = [], onUpdateStatus, onDeleteRecord, isLoading }: ManageOvertimeProps) {
   const [selectedRecord, setSelectedRecord] = useState<OvertimeRecord | null>(null);
   const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
   const [verificationNotes, setVerificationNotes] = useState("");
   const [action, setAction] = useState<"Accepted" | "Rejected" | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   const handleVerifyClick = (record: OvertimeRecord, newStatus: "Accepted" | "Rejected") => {
@@ -75,6 +89,26 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
     }
   };
 
+  const handleConfirmDelete = async (recordId: string) => {
+    setIsDeleting(true);
+    try {
+      await onDeleteRecord(recordId);
+      toast({
+        title: "Sukses",
+        description: "Catatan lembur berhasil dihapus.",
+      });
+    } catch (error) {
+      console.error("Delete record error:", error);
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Tidak dapat menghapus catatan lembur.",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   const getStatusBadge = (status: VerificationStatus) => {
     switch (status) {
       case "Accepted":
@@ -94,7 +128,7 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Camera /> Kelola Absensi</CardTitle>
         <CardDescription>
-          Verifikasi catatan lembur yang diajukan oleh pengguna.
+          Verifikasi dan kelola catatan lembur yang diajukan oleh pengguna.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -110,7 +144,13 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
               </TableRow>
             </TableHeader>
             <TableBody>
-              {records.length > 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : records.length > 0 ? (
                 records.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">{record.employeeName}</TableCell>
@@ -122,33 +162,37 @@ export function ManageOvertime({ records = [], onUpdateStatus }: ManageOvertimeP
                     </TableCell>
                     <TableCell>{getStatusBadge(record.verificationStatus)}</TableCell>
                     <TableCell className="flex gap-2 justify-center">
-                        {record.status === 'Checked Out' ? (
-                            record.verificationStatus === 'Pending' ? (
-                                <>
-                                    <Button variant="outline" size="sm" className="bg-green-50 hover:bg-green-100 text-green-800 border-green-200" onClick={() => handleVerifyClick(record, 'Accepted')}>
-                                        <Check className="mr-2 h-4 w-4" /> Terima
-                                    </Button>
-                                    <Button variant="destructive" size="sm" onClick={() => handleVerifyClick(record, 'Rejected')}>
-                                        <X className="mr-2 h-4 w-4" /> Tolak
-                                    </Button>
-                                </>
-                            ) : (
-                                <Button variant="outline" size="sm" onClick={() => handleVerifyClick(record, record.verificationStatus === 'Accepted' ? 'Rejected' : 'Accepted')}>
-                                    Ubah Status
-                                </Button>
-                            )
-                        ) : (
-                            <Badge variant="outline" className="flex items-center gap-2">
-                                <Clock className="h-4 w-4" /> Sedang Berlangsung
-                            </Badge>
-                        )}
+                      <Button variant="outline" size="sm" onClick={() => handleVerifyClick(record, record.verificationStatus === 'Accepted' ? 'Rejected' : 'Accepted')}>
+                          Ubah Status
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Apakah Anda Yakin?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tindakan ini akan menghapus catatan lembur untuk <strong>{record.employeeName}</strong> pada tanggal <strong>{record.checkInTime ? format(new Date(record.checkInTime), "d MMM yyyy", { locale: id }) : ''}</strong> secara permanen. Tindakan ini tidak dapat dibatalkan.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleConfirmDelete(record.id)} disabled={isDeleting}>
+                              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Ya, Hapus"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    Tidak ada catatan lembur untuk diverifikasi.
+                    Tidak ada catatan lembur untuk dikelola.
                   </TableCell>
                 </TableRow>
               )}
