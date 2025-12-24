@@ -24,49 +24,38 @@ type HomePageProps = {
 
 export function HomePage({ userRole }: HomePageProps) {
   const { db } = useFirestore();
-  const { user, name: userName } = useUser();
+  const { user, name: userName, role } = useUser();
   const auth = useAuth();
   const router = useRouter();
 
-  const [records, setRecords] = useState<OvertimeRecord[]>([]);
-  const [users, setUsers] = useState<UserProfile[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
-  const [loadingAction, setLoadingAction] = useState(false);
 
-  const refetchRecords = useCallback(async () => {
-    if (!db || !user?.uid) return;
+  const overtimeQuery = useMemo(() => {
+    if (!db || !user?.uid) return null;
 
-    setRecordsLoading(true);
-    const recordsQuery = userRole === 'Admin'
-      ? query(collection(db, 'overtimeRecords'))
-      : query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
-      
-    const snapshot = await getDocs(recordsQuery);
-    const fetchedRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OvertimeRecord));
-    setRecords(fetchedRecords);
-    setRecordsLoading(false);
-  }, [db, user?.uid, userRole]);
+    if (role === 'Admin') {
+      return query(collection(db, 'overtimeRecords'));
+    }
+    
+    return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
+  }, [db, user?.uid, role]);
 
-  const refetchUsers = useCallback(async () => {
-    if (!db || userRole !== 'Admin') {
-      setUsers([]);
-      setUsersLoading(false);
-      return;
-    };
-    setUsersLoading(true);
-    const usersQuery = query(collection(db, 'users'));
-    const snapshot = await getDocs(usersQuery);
-    const fetchedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
-    setUsers(fetchedUsers);
-    setUsersLoading(false);
-  }, [db, userRole]);
+  const usersQuery = useMemo(() => {
+    if (!db || role !== 'Admin') return null;
+    return query(collection(db, 'users'));
+  }, [db, role]);
+
+  const { data: records = [], loading: recordsAreLoading, refetch: refetchRecords } = useCollection<OvertimeRecord>(overtimeQuery);
+  const { data: users = [], loading: usersAreLoading, refetch: refetchUsers } = useCollection<UserProfile>(usersQuery);
 
   useEffect(() => {
-    refetchRecords();
-    refetchUsers();
-  }, [refetchRecords, refetchUsers]);
+    setRecordsLoading(recordsAreLoading);
+  }, [recordsAreLoading]);
 
+  useEffect(() => {
+    setUsersLoading(usersAreLoading);
+  }, [usersAreLoading]);
 
   const sortedRecords = useMemo(() => {
     if (!records) return [];
@@ -113,10 +102,9 @@ export function HomePage({ userRole }: HomePageProps) {
     })();
   }, [db]);
 
-  const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt' | 'employeeId' | 'employeeName'>) => {
+  const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
     if (!db || !user || !userName) return;
     
-    setLoadingAction(true);
     const createdAt = new Date().toISOString();
     const temporaryPhotoForUpload = newRecordData.checkInPhoto;
     
@@ -124,7 +112,7 @@ export function HomePage({ userRole }: HomePageProps) {
       ...newRecordData,
       employeeId: user.uid,
       employeeName: userName,
-      checkInPhoto: null,
+      checkInPhoto: null, // Will be updated by background upload
       status: 'Checked In' as const,
       checkOutTime: null,
       checkOutPhoto: null,
@@ -143,8 +131,6 @@ export function HomePage({ userRole }: HomePageProps) {
     } catch (error) {
       console.error("Error during check-in:", error);
       throw error;
-    } finally {
-      setLoadingAction(false);
     }
 
   }, [db, user, userName, uploadPhotoAndUpdateRecord, refetchRecords]);
@@ -152,7 +138,6 @@ export function HomePage({ userRole }: HomePageProps) {
   const handleCheckOut = useCallback(async ({ id, checkOutTime, checkOutPhoto, checkOutLocation }: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
     if (!db || !checkOutTime || !checkOutPhoto) return;
 
-    setLoadingAction(true);
     const recordRef = doc(db, 'overtimeRecords', id);
     
     try {
@@ -160,7 +145,7 @@ export function HomePage({ userRole }: HomePageProps) {
         status: 'Checked Out',
         checkOutTime: new Date(checkOutTime).toISOString(),
         checkOutLocation,
-        checkOutPhoto: null,
+        checkOutPhoto: null, // Will be updated by background upload
       });
 
       uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
@@ -168,8 +153,6 @@ export function HomePage({ userRole }: HomePageProps) {
     } catch (error) {
       console.error("Error during check-out:", error);
       throw error;
-    } finally {
-      setLoadingAction(false);
     }
 
   }, [db, uploadPhotoAndUpdateRecord, refetchRecords]);
@@ -247,7 +230,7 @@ export function HomePage({ userRole }: HomePageProps) {
               onCheckIn={handleCheckIn}
               onCheckOut={handleCheckOut}
               userName={userName ?? 'Pengguna'}
-              isLoading={recordsLoading || loadingAction}
+              isLoading={recordsLoading}
             />
           </TabsContent>
           {userRole === 'Admin' && (

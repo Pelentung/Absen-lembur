@@ -11,7 +11,8 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      // Allow any authenticated user to list users (for dropdowns, etc.)
+      // Allow any authenticated user to list and get user profiles.
+      // This is needed for UI elements like dropdowns.
       allow list, get: if request.auth != null;
       
       // Allow users to update their own profile, and admins to update any.
@@ -21,6 +22,7 @@ service cloud.firestore {
       allow delete: if request.auth != null && isAdmin();
 
       // Any authenticated user can create their own user document upon signup.
+      // The UID in the document must match the authenticated user's UID.
       allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
     }
 
@@ -29,10 +31,12 @@ service cloud.firestore {
       // An admin can get any record. A user can get their own.
       allow get: if request.auth != null && (isAdmin() || resource.data.employeeId == request.auth.uid);
       
-      // An admin can list all records. A user can only list records matching their own UID.
-      allow list: if request.auth != null && (isAdmin() || request.query.where.employeeId == request.auth.uid);
+      // Admins can list all records.
+      // Users can ONLY list records that match their own UID. This rule is now strictly enforced by the query in the app.
+      allow list: if request.auth != null && 
+                    (isAdmin() || request.query.where.employeeId == request.auth.uid);
 
-      // A user can create their own record.
+      // A user can create their own record, ensuring the employeeId matches their auth UID.
       allow create: if request.auth != null && request.resource.data.employeeId == request.auth.uid;
       
       // An admin can update any record. A user can only update their own.
