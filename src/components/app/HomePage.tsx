@@ -46,8 +46,6 @@ export function HomePage({ userRole }: HomePageProps) {
   const users = usersData ?? [];
 
 
-  const [localActiveRecord, setLocalActiveRecord] = useState<OvertimeRecord | null>(null);
-
   const sortedRecords = useMemo(() => {
     if (!records) return [];
     return [...records].sort((a, b) => {
@@ -57,12 +55,10 @@ export function HomePage({ userRole }: HomePageProps) {
     });
   }, [records]);
   
-  // This logic ensures the UI is immediately responsive.
   const activeUserRecord = useMemo(() => {
-    if (localActiveRecord) return localActiveRecord;
     if (recordsLoading) return null; // Wait for records to load initially
     return sortedRecords.find(r => r.status === "Checked In") ?? null;
-  }, [localActiveRecord, sortedRecords, recordsLoading]);
+  }, [sortedRecords, recordsLoading]);
   
   const userHistory = useMemo(() =>
     sortedRecords,
@@ -95,23 +91,23 @@ export function HomePage({ userRole }: HomePageProps) {
     })();
   }, [db]);
 
-  const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
+  const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt' | 'employeeId' | 'employeeName'>) => {
     if (!db || !user || !userName) return;
     
     const createdAt = new Date().toISOString();
     const temporaryPhotoForUpload = newRecordData.checkInPhoto; // The data URI
     
-    // 1. Prepare the initial record for Firestore (without the photo URL)
-    const initialRecord: Omit<OvertimeRecord, 'id'> = {
+    // 1. Prepare the initial record for Firestore, now including employeeId and employeeName
+    const initialRecord = {
       ...newRecordData,
       employeeId: user.uid,
       employeeName: userName,
       checkInPhoto: null, // Firestore will store null initially
-      status: 'Checked In',
+      status: 'Checked In' as const,
       checkOutTime: null,
       checkOutPhoto: null,
       checkOutLocation: null,
-      verificationStatus: 'Pending',
+      verificationStatus: 'Pending' as const,
       createdAt: createdAt,
     };
     
@@ -119,22 +115,13 @@ export function HomePage({ userRole }: HomePageProps) {
       // 2. This is the only part the user's device waits for. It's very fast.
       const docRef = await addDoc(collection(db, 'overtimeRecords'), initialRecord);
       
-      // 3. Immediately update the UI with an "optimistic" local record.
-      // Use the temporary photo data URI for immediate visual feedback if needed, even though it's null in Firestore.
-      const optimisticRecord: OvertimeRecord = {
-        ...initialRecord,
-        id: docRef.id,
-        checkInPhoto: temporaryPhotoForUpload, // For UI display only
-      };
-      setLocalActiveRecord(optimisticRecord);
-
+      // 3. The UI will update automatically via the realtime listener.
       // 4. Start the photo upload in the background. Note the absence of 'await'.
       if (temporaryPhotoForUpload) {
         uploadPhotoAndUpdateRecord(temporaryPhotoForUpload, docRef.id, 'checkIn');
       }
     } catch (error) {
       console.error("Error during check-in:", error);
-      setLocalActiveRecord(null); // Rollback optimistic update on error
       throw error; // Re-throw to be caught by the UI
     }
 
@@ -145,11 +132,8 @@ export function HomePage({ userRole }: HomePageProps) {
 
     const recordRef = doc(db, 'overtimeRecords', id);
     
-    // 1. Optimistically update the UI to show it's checked out
-    setLocalActiveRecord(null);
-    
     try {
-      // 2. This part is very fast. Update the record with text-based data.
+      // This part is very fast. Update the record with text-based data.
       await updateDoc(recordRef, {
         status: 'Checked Out',
         checkOutTime: new Date(checkOutTime).toISOString(),
@@ -157,12 +141,11 @@ export function HomePage({ userRole }: HomePageProps) {
         checkOutPhoto: null, // Set to null initially in Firestore
       });
 
-      // 3. Start photo upload in the background. Note the absence of 'await'.
+      // Start photo upload in the background. Note the absence of 'await'.
       uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
     } catch (error) {
       console.error("Error during check-out:", error);
-      // If the update fails, we should ideally revert the local state.
-      // However, the real-time listener will eventually correct the UI.
+      // If the update fails, the real-time listener will eventually correct the UI.
       throw error; // Re-throw to be caught by the UI
     }
 

@@ -20,7 +20,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "..
 type UserDashboardProps = {
   activeRecord: OvertimeRecord | null;
   historyRecords: OvertimeRecord[];
-  onCheckIn: (record: Omit<OvertimeRecord, 'id' | 'employeeId' | 'employeeName' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => Promise<void>;
+  onCheckIn: (record: Pick<OvertimeRecord, 'checkInTime' | 'checkInPhoto' | 'checkInLocation' | 'purpose'>) => Promise<void>;
   onCheckOut: (record: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => Promise<void>;
   userName: string;
 };
@@ -121,7 +121,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        const dataUri = canvas.toDataURL('image/jpeg', 0.2);
+        const dataUri = canvas.toDataURL('image/jpeg');
         setPhotoPreview(dataUri);
         setShowCamera(false);
       }
