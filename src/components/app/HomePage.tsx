@@ -31,8 +31,10 @@ export function HomePage({ userRole }: HomePageProps) {
   const recordsQuery = useMemo(() => {
     if (!db || !user) return null;
     if (userRole === 'Admin') {
+      // Admin gets all records
       return query(collection(db, 'overtimeRecords'));
     }
+    // Regular user only gets their own records, this is crucial for firestore rules
     return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
   }, [db, user, userRole]);
 
@@ -56,7 +58,7 @@ export function HomePage({ userRole }: HomePageProps) {
   }, [records]);
   
   const activeUserRecord = useMemo(() => {
-    if (recordsLoading) return null; // Wait for records to load initially
+    if (recordsLoading || !records) return null;
     return sortedRecords.find(r => r.status === "Checked In") ?? null;
   }, [sortedRecords, recordsLoading]);
   
@@ -97,7 +99,7 @@ export function HomePage({ userRole }: HomePageProps) {
     const createdAt = new Date().toISOString();
     const temporaryPhotoForUpload = newRecordData.checkInPhoto; // The data URI
     
-    // 1. Prepare the initial record for Firestore, now including employeeId and employeeName
+    // 1. Prepare the initial record for Firestore, including employeeId and employeeName
     const initialRecord = {
       ...newRecordData,
       employeeId: user.uid,

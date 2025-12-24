@@ -4,26 +4,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check for Admin role
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
     // Users: Admins can manage all users. Users can read/write their own profile.
     match /users/{userId} {
-      allow read: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || request.auth.uid == userId);
-      allow write: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || request.auth.uid == userId);
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow read, write: if request.auth != null && (isAdmin() || request.auth.uid == userId);
+      allow delete: if request.auth != null && isAdmin();
       allow create: if request.auth != null; // Anyone can create their own user doc on signup.
     }
 
     // Overtime Records
     match /overtimeRecords/{recordId} {
       // Admins can get any record. Users can get their own.
-      allow get: if request.auth != null && 
-                  (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
-                   resource.data.employeeId == request.auth.uid);
+      allow get: if request.auth != null && (isAdmin() || resource.data.employeeId == request.auth.uid);
       
-      // Admins can list all records. Users can query for their own records.
-      // This rule ensures non-admins can ONLY list records if they are querying by their own employeeId.
+      // Admins can list all records. Users can ONLY list records if they are querying by their own employeeId.
       allow list: if request.auth != null && 
-                   (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
-                    request.query.where.keys().hasAll(['employeeId']) && request.query.where.employeeId == request.auth.uid);
+                   (isAdmin() || 
+                    (request.query.where.keys().hasAll(['employeeId']) && request.query.where.employeeId == request.auth.uid));
 
       // Authenticated users can create their own records.
       // The employeeId in the new document must match the creator's UID.
@@ -31,13 +32,11 @@ service cloud.firestore {
       
       // Users can update their own records (e.g., for check-out).
       // Admins can update any record (e.g., for verification).
-      // This rule checks the existing document's owner (`resource.data.employeeId`).
       allow update: if request.auth != null && 
-                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
-                     resource.data.employeeId == request.auth.uid);
+                    (isAdmin() || resource.data.employeeId == request.auth.uid);
 
       // Only admins can delete records
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow delete: if request.auth != null && isAdmin();
     }
   }
 }
