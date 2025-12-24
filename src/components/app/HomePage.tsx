@@ -11,7 +11,7 @@ import { AdminReport } from "./AdminReport";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole, UserProfile, VerificationStatus } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -33,7 +33,8 @@ export function HomePage({ userRole }: HomePageProps) {
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   const overtimeQuery = useMemo(() => {
-    if (!db || !user?.uid) return null;
+    // Crucially wait for `role` to be determined to avoid incorrect queries
+    if (!db || !user?.uid || !role) return null;
 
     if (role === 'Admin') {
       return query(collection(db, 'overtimeRecords'));
@@ -271,3 +272,5 @@ export function HomePage({ userRole }: HomePageProps) {
     </main>
   );
 }
+
+    

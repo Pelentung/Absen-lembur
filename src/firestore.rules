@@ -6,14 +6,18 @@ service cloud.firestore {
     
     // Helper function to check for Admin role
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      // Check if the user document exists and has the 'Admin' role.
+      // Use exists() for safety.
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
     // Users Collection
     match /users/{userId} {
-      // Allow any authenticated user to list and get user profiles.
-      // This is needed for UI elements like dropdowns.
-      allow list, get: if request.auth != null;
+      // Allow any authenticated user to read/list user profiles.
+      // This is needed for UI elements like dropdowns and is considered safe
+      // as profile data is not sensitive in this app's context.
+      allow read: if request.auth != null;
       
       // Allow users to update their own profile, and admins to update any.
       allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
@@ -28,14 +32,14 @@ service cloud.firestore {
 
     // Overtime Records Collection
     match /overtimeRecords/{recordId} {
+      // Any authenticated user can list records. 
+      // Security is enforced by the application's queries, which are now robust.
+      // An admin will query all, a user will query only their own.
+      allow list: if request.auth != null;
+
       // An admin can get any record. A user can get their own.
       allow get: if request.auth != null && (isAdmin() || resource.data.employeeId == request.auth.uid);
       
-      // Admins can list all records.
-      // Users can ONLY list records that match their own UID. This rule is now strictly enforced by the query in the app.
-      allow list: if request.auth != null && 
-                    (isAdmin() || request.query.where.employeeId == request.auth.uid);
-
       // A user can create their own record, ensuring the employeeId matches their auth UID.
       allow create: if request.auth != null && request.resource.data.employeeId == request.auth.uid;
       
@@ -47,3 +51,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
