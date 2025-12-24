@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { onSnapshot, Query, DocumentData, getDocs } from 'firebase/firestore';
 
 // A generic hook to subscribe to a collection
