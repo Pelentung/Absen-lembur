@@ -23,13 +23,13 @@ type UserDashboardProps = {
   onCheckOut: (record: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => Promise<void>;
   userName: string;
   isLoading: boolean;
+  isActionLoading: boolean;
 };
 
-export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheckOut, userName, isLoading }: UserDashboardProps) {
+export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheckOut, userName, isLoading, isActionLoading }: UserDashboardProps) {
   const [view, setView] = useState<'main' | 'camera' | 'preview'>('main');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [location, setLocation] = useState<GeoLocation | null>(null);
-  const [isActionLoading, setIsActionLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isPurposeDialogOpen, setIsPurposeDialogOpen] = useState(false);
   const [purpose, setPurpose] = useState("");
@@ -48,7 +48,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         isToday(parseISO(record.checkOutTime))
     );
   }, [historyRecords]);
-
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -146,21 +145,20 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
 
   const resetActionState = () => {
     setPhotoPreview(null);
-    setIsActionLoading(false);
     setPurpose("");
     setIsPurposeDialogOpen(false);
     setView('main');
   };
 
-  const handleConfirm = () => {
+  const handleConfirmAction = () => {
     if (isCheckedIn) {
-      handleSubmit(); // Checkout doesn't need purpose dialog
+      handleSubmitAction(); // Checkout doesn't need purpose dialog
     } else {
       setIsPurposeDialogOpen(true); // Check-in needs purpose
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmitAction = async () => {
     if (!photoPreview || !location) {
       toast({
         variant: "destructive",
@@ -180,7 +178,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         return;
     }
     
-    setIsActionLoading(true);
     setIsPurposeDialogOpen(false);
 
     try {
@@ -244,7 +241,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
             <Button variant="outline" onClick={() => setView('camera')}>Ambil Ulang Foto</Button>
           </CardContent>
           <CardFooter>
-            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirm} disabled={isActionLoading || !location}>
+            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirmAction} disabled={isActionLoading || !location}>
               {isActionLoading ? <Loader2 className="animate-spin mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
               {isActionLoading ? "Menyimpan..." : confirmButtonText}
             </Button>
@@ -279,6 +276,27 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     );
   }
 
+  const MainActionButton = () => {
+    const buttonText = isCheckedIn ? "Check Out" : "Check In";
+    
+    return (
+      <Button
+        size="lg"
+        className="w-full h-24 text-lg"
+        onClick={handleMainActionClick}
+        disabled={!location || isActionLoading}
+      >
+        {isActionLoading ? (
+            <Loader2 className="mr-4 h-8 w-8 animate-spin" />
+        ) : (
+          <>
+            <Camera className="mr-4 h-8 w-8" /> {buttonText}
+          </>
+        )}
+      </Button>
+    )
+  }
+
   const renderMainView = () => {
     if (isLoading) {
       return (
@@ -293,6 +311,9 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     if (hasCheckedOutToday) {
       return (
          <Card className="text-center">
+            <CardHeader>
+              <CardTitle>Aksi Absensi</CardTitle>
+            </CardHeader>
             <CardContent className="pt-6 flex flex-col items-center justify-center h-40 gap-4 text-green-700 bg-green-50 rounded-md">
                 <CheckCircle className="h-10 w-10" />
                 <p className="font-medium text-lg">Anda sudah menyelesaikan sesi lembur hari ini.</p>
@@ -301,28 +322,13 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       )
     }
     
-    const buttonText = isCheckedIn ? "Check Out" : "Check In";
-    
     return (
        <Card className="text-center">
         <CardHeader>
           <CardTitle>Aksi Absensi</CardTitle>
         </CardHeader>
         <CardContent>
-            <Button
-              size="lg"
-              className="w-full h-24 text-lg"
-              onClick={handleMainActionClick}
-              disabled={!location || isActionLoading}
-            >
-              {isActionLoading ? (
-                  <Loader2 className="mr-4 h-8 w-8 animate-spin" />
-              ) : (
-                <>
-                  <Camera className="mr-4 h-8 w-8" /> {buttonText}
-                </>
-              )}
-            </Button>
+            <MainActionButton />
         </CardContent>
          <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
@@ -372,7 +378,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     );
 
     if (monthKeys.length === 0) return null;
-
 
     return (
         <Card>
@@ -488,7 +493,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSubmit} disabled={isActionLoading || !purpose}>
+            <Button onClick={handleSubmitAction} disabled={isActionLoading || !purpose}>
               {isActionLoading ? <Loader2 className="animate-spin" /> : "Kirim & Cek In"}
             </Button>
           </DialogFooter>

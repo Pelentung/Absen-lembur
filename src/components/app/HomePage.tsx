@@ -11,7 +11,7 @@ import { AdminReport } from "./AdminReport";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole, UserProfile, VerificationStatus } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs, Query } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -30,6 +30,7 @@ export function HomePage({ userRole }: HomePageProps) {
 
   const [recordsLoading, setRecordsLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   const overtimeQuery = useMemo(() => {
     if (!db || !user?.uid) return null;
@@ -105,6 +106,7 @@ export function HomePage({ userRole }: HomePageProps) {
   const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt'>) => {
     if (!db || !user || !userName) return;
     
+    setIsActionLoading(true);
     const createdAt = new Date().toISOString();
     const temporaryPhotoForUpload = newRecordData.checkInPhoto;
     
@@ -131,6 +133,8 @@ export function HomePage({ userRole }: HomePageProps) {
     } catch (error) {
       console.error("Error during check-in:", error);
       throw error;
+    } finally {
+      setIsActionLoading(false);
     }
 
   }, [db, user, userName, uploadPhotoAndUpdateRecord, refetchRecords]);
@@ -138,6 +142,7 @@ export function HomePage({ userRole }: HomePageProps) {
   const handleCheckOut = useCallback(async ({ id, checkOutTime, checkOutPhoto, checkOutLocation }: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
     if (!db || !checkOutTime || !checkOutPhoto) return;
 
+    setIsActionLoading(true);
     const recordRef = doc(db, 'overtimeRecords', id);
     
     try {
@@ -153,6 +158,8 @@ export function HomePage({ userRole }: HomePageProps) {
     } catch (error) {
       console.error("Error during check-out:", error);
       throw error;
+    } finally {
+      setIsActionLoading(false);
     }
 
   }, [db, uploadPhotoAndUpdateRecord, refetchRecords]);
@@ -231,6 +238,7 @@ export function HomePage({ userRole }: HomePageProps) {
               onCheckOut={handleCheckOut}
               userName={userName ?? 'Pengguna'}
               isLoading={recordsLoading}
+              isActionLoading={isActionLoading}
             />
           </TabsContent>
           {userRole === 'Admin' && (
