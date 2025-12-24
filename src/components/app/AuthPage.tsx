@@ -63,7 +63,12 @@ export function AuthPage() {
         const normalizedJabatan = jabatan.trim().toUpperCase();
         const role = normalizedJabatan === 'ADMIN' ? 'Admin' : 'User';
         
-        await setDoc(doc(db, 'users', user.uid), {
+        // Move to the home page immediately
+        toast({ title: 'Pendaftaran Berhasil!', description: 'Anda akan dialihkan ke halaman utama.' });
+        router.push('/');
+
+        // Save user data in the background
+        setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           email: user.email,
           name: name,
@@ -71,10 +76,16 @@ export function AuthPage() {
           pangkat: pangkat,
           jabatan: jabatan,
           role: role,
+        }).catch(error => {
+          console.error("Error writing user document:", error);
+          // Optionally, show a non-blocking toast to the user if saving fails
+          toast({
+            variant: 'destructive',
+            title: 'Peringatan',
+            description: 'Gagal menyimpan data profil, beberapa fitur mungkin tidak berfungsi. Silakan coba login ulang.',
+          });
         });
 
-        toast({ title: 'Pendaftaran Berhasil!', description: 'Anda akan dialihkan ke halaman utama.' });
-        router.push('/');
       }
     } catch (error: any) {
       let description = 'Terjadi kesalahan. Silakan coba lagi.';
@@ -92,7 +103,10 @@ export function AuthPage() {
         description: description,
       });
     } finally {
-      setIsLoading(false);
+      // Set loading to false only for login, as registration now navigates away.
+      if (action === 'login') {
+        setIsLoading(false);
+      }
     }
   };
 
