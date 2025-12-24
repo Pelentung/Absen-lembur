@@ -42,9 +42,10 @@ type ManageUsersProps = {
   users: UserProfile[];
   onUpdateUser: (updatedUser: Partial<UserProfile> & { id: string }) => void;
   onDeleteUser: (userId: string) => void;
+  isLoading: boolean;
 };
 
-export function ManageUsers({ users = [], onUpdateUser, onDeleteUser }: ManageUsersProps) {
+export function ManageUsers({ users = [], onUpdateUser, onDeleteUser, isLoading }: ManageUsersProps) {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -128,7 +129,13 @@ export function ManageUsers({ users = [], onUpdateUser, onDeleteUser }: ManageUs
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.length > 0 ? (
+              {isLoading ? (
+                 <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : users.length > 0 ? (
                 users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>

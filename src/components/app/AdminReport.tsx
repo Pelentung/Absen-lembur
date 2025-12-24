@@ -18,15 +18,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileDown, Search, XCircle } from "lucide-react";
+import { FileDown, Search, XCircle, Loader2 } from "lucide-react";
 import type { OvertimeRecord, UserProfile, VerificationStatus } from "@/lib/types";
 
 type AdminReportProps = {
   records: OvertimeRecord[];
   users: UserProfile[];
+  isLoading: boolean;
 };
 
-export function AdminReport({ records = [], users = [] }: AdminReportProps) {
+export function AdminReport({ records = [], users = [], isLoading }: AdminReportProps) {
   const [filterName, setFilterName] = useState("all");
   const [filterPurpose, setFilterPurpose] = useState("");
 
@@ -143,7 +144,13 @@ export function AdminReport({ records = [], users = [] }: AdminReportProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRecords.length > 0 ? (
+              {isLoading ? (
+                 <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : filteredRecords.length > 0 ? (
                 filteredRecords.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">{record.employeeName}</TableCell>

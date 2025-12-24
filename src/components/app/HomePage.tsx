@@ -41,8 +41,8 @@ export function HomePage({ userRole }: HomePageProps) {
     return query(collection(db, 'users'));
   }, [db, userRole]);
 
-  const { data: records } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: true });
-  const { data: usersData } = useCollection<UserProfile>(usersQuery, { isRealtime: true });
+  const { data: records, loading: recordsLoading } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: true });
+  const { data: usersData, loading: usersLoading } = useCollection<UserProfile>(usersQuery, { isRealtime: true });
   const users = usersData ?? [];
 
 
@@ -56,21 +56,23 @@ export function HomePage({ userRole }: HomePageProps) {
       return dateB - dateA;
     });
   }, [records]);
-
-  const activeUserRecord = useMemo(() => 
-    localActiveRecord ?? sortedRecords.find(r => r.employeeId === user?.uid && r.status === "Checked In") ?? null, 
-    [sortedRecords, user, localActiveRecord]
-  );
+  
+  // This logic ensures the UI is immediately responsive.
+  const activeUserRecord = useMemo(() => {
+    if (localActiveRecord) return localActiveRecord;
+    if (recordsLoading) return null; // Wait for records to load initially
+    return sortedRecords.find(r => r.status === "Checked In") ?? null;
+  }, [localActiveRecord, sortedRecords, recordsLoading]);
   
   const userHistory = useMemo(() =>
-    sortedRecords.filter(r => r.employeeId === user?.uid),
-    [sortedRecords, user]
+    sortedRecords,
+    [sortedRecords]
   );
 
   const uploadPhotoAndUpdateRecord = useCallback((photoDataUri: string, recordId: string, type: 'checkIn' | 'checkOut') => {
     if (!db) return;
 
-    // Run this process in the background without blocking the UI
+    // This whole process runs in the background without blocking the UI.
     (async () => {
       try {
         const storage = getStorage();
@@ -85,10 +87,10 @@ export function HomePage({ userRole }: HomePageProps) {
             : { checkOutPhoto: downloadURL };
             
         await updateDoc(recordRef, fieldToUpdate);
+        console.log(`Background photo upload for ${type} successful.`);
       } catch (error) {
         console.error(`Error in background photo upload for ${type}:`, error);
-        // This error happens in the background and won't block the user.
-        // You could potentially add a background retry mechanism or logging service here.
+        // This error happens in the background. We could add a retry mechanism or logging.
       }
     })();
   }, [db]);
@@ -97,8 +99,9 @@ export function HomePage({ userRole }: HomePageProps) {
     if (!db || !user || !userName) return;
     
     const createdAt = new Date().toISOString();
-    const temporaryPhoto = newRecordData.checkInPhoto;
+    const temporaryPhotoForUpload = newRecordData.checkInPhoto; // The data URI
     
+    // 1. Prepare the initial record for Firestore (without the photo URL)
     const initialRecord: Omit<OvertimeRecord, 'id'> = {
       ...newRecordData,
       employeeId: user.uid,
@@ -113,22 +116,25 @@ export function HomePage({ userRole }: HomePageProps) {
     };
     
     try {
-      // This is the only part the user's device waits for. It's very fast.
+      // 2. This is the only part the user's device waits for. It's very fast.
       const docRef = await addDoc(collection(db, 'overtimeRecords'), initialRecord);
       
-      const finalRecord: OvertimeRecord = {
+      // 3. Immediately update the UI with an "optimistic" local record.
+      // Use the temporary photo data URI for immediate visual feedback if needed, even though it's null in Firestore.
+      const optimisticRecord: OvertimeRecord = {
         ...initialRecord,
         id: docRef.id,
-        checkInPhoto: temporaryPhoto, // Use local data URI for immediate UI feedback
+        checkInPhoto: temporaryPhotoForUpload, // For UI display only
       };
-      setLocalActiveRecord(finalRecord);
+      setLocalActiveRecord(optimisticRecord);
 
-      // Start upload in the background. Note the absence of 'await'.
-      if (temporaryPhoto) {
-        uploadPhotoAndUpdateRecord(temporaryPhoto, docRef.id, 'checkIn');
+      // 4. Start the photo upload in the background. Note the absence of 'await'.
+      if (temporaryPhotoForUpload) {
+        uploadPhotoAndUpdateRecord(temporaryPhotoForUpload, docRef.id, 'checkIn');
       }
     } catch (error) {
       console.error("Error during check-in:", error);
+      setLocalActiveRecord(null); // Rollback optimistic update on error
       throw error; // Re-throw to be caught by the UI
     }
 
@@ -139,22 +145,24 @@ export function HomePage({ userRole }: HomePageProps) {
 
     const recordRef = doc(db, 'overtimeRecords', id);
     
-    // Optimistically update the local state to show it's checked out
+    // 1. Optimistically update the UI to show it's checked out
     setLocalActiveRecord(null);
     
     try {
-      // This part is very fast.
+      // 2. This part is very fast. Update the record with text-based data.
       await updateDoc(recordRef, {
         status: 'Checked Out',
         checkOutTime: new Date(checkOutTime).toISOString(),
         checkOutLocation,
-        checkOutPhoto: null, // Set to null initially
+        checkOutPhoto: null, // Set to null initially in Firestore
       });
 
-      // Start upload in the background. Note the absence of 'await'.
+      // 3. Start photo upload in the background. Note the absence of 'await'.
       uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
     } catch (error) {
       console.error("Error during check-out:", error);
+      // If the update fails, we should ideally revert the local state.
+      // However, the real-time listener will eventually correct the UI.
       throw error; // Re-throw to be caught by the UI
     }
 
@@ -246,12 +254,14 @@ export function HomePage({ userRole }: HomePageProps) {
                   users={users}
                   onUpdateUser={handleUpdateUser}
                   onDeleteUser={handleDeleteUser}
+                  isLoading={usersLoading}
                 />
               </TabsContent>
               <TabsContent value="admin-report" className="mt-6">
                 <AdminReport 
                   records={sortedRecords}
                   users={users}
+                  isLoading={recordsLoading || usersLoading}
                 />
               </TabsContent>
             </>
