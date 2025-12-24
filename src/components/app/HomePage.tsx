@@ -29,17 +29,18 @@ export function HomePage({ userRole }: HomePageProps) {
   const router = useRouter();
 
   const recordsQuery = useMemo(() => {
-    if (!db || !user) return null;
+    if (!db || !user?.uid) return null; // Wait for user to be available
+    
     if (userRole === 'Admin') {
-      // Admin gets all records
+      // Admin gets all records, ordered by creation date
       return query(collection(db, 'overtimeRecords'));
     }
-    // Regular user only gets their own records, this is crucial for firestore rules
+    // Regular user only gets their own records
     return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
-  }, [db, user, userRole]);
+  }, [db, user?.uid, userRole]);
 
   const usersQuery = useMemo(() => {
-    if (!db || userRole !== 'Admin') return null;
+    if (!db || userRole !== 'Admin') return null; // Only admins fetch all users
     return query(collection(db, 'users'));
   }, [db, userRole]);
 
@@ -99,7 +100,6 @@ export function HomePage({ userRole }: HomePageProps) {
     const createdAt = new Date().toISOString();
     const temporaryPhotoForUpload = newRecordData.checkInPhoto; // The data URI
     
-    // 1. Prepare the initial record for Firestore, including employeeId and employeeName
     const initialRecord = {
       ...newRecordData,
       employeeId: user.uid,
@@ -114,11 +114,8 @@ export function HomePage({ userRole }: HomePageProps) {
     };
     
     try {
-      // 2. This is the only part the user's device waits for. It's very fast.
       const docRef = await addDoc(collection(db, 'overtimeRecords'), initialRecord);
       
-      // 3. The UI will update automatically via the realtime listener.
-      // 4. Start the photo upload in the background. Note the absence of 'await'.
       if (temporaryPhotoForUpload) {
         uploadPhotoAndUpdateRecord(temporaryPhotoForUpload, docRef.id, 'checkIn');
       }
@@ -135,7 +132,6 @@ export function HomePage({ userRole }: HomePageProps) {
     const recordRef = doc(db, 'overtimeRecords', id);
     
     try {
-      // This part is very fast. Update the record with text-based data.
       await updateDoc(recordRef, {
         status: 'Checked Out',
         checkOutTime: new Date(checkOutTime).toISOString(),
@@ -143,11 +139,9 @@ export function HomePage({ userRole }: HomePageProps) {
         checkOutPhoto: null, // Set to null initially in Firestore
       });
 
-      // Start photo upload in the background. Note the absence of 'await'.
       uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
     } catch (error) {
       console.error("Error during check-out:", error);
-      // If the update fails, the real-time listener will eventually correct the UI.
       throw error; // Re-throw to be caught by the UI
     }
 
