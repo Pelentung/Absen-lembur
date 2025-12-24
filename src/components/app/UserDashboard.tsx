@@ -194,7 +194,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           checkOutLocation: location,
         });
         toast({ title: "Sukses Cek Out", description: `Anda berhasil cek out pada ${new Date(now).toLocaleTimeString()}` });
-        resetState(); // Reset after checkout to show "completed for today" state
+        resetState();
       } else {
         await onCheckIn({
           checkInTime: now,
@@ -203,12 +203,21 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           purpose: purpose,
         });
         toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${new Date(now).toLocaleTimeString()}` });
-        resetState(); // Reset after checkin to switch button to "checkout"
+        // Don't reset state here, allow the parent component's state to trigger the re-render to "Check Out"
       }
     } catch (error) {
       console.error("Submit error:", error);
       toast({ variant: "destructive", title: "Terjadi Kesalahan", description: "Gagal menyimpan data." });
       setIsLoading(false);
+    } finally {
+        if (!isCheckedIn) {
+           // We only need to manually stop loading for check-in. 
+           // Check-out will cause a full reset.
+           setIsLoading(false);
+           setView('main');
+           setPhotoPreview(null);
+           setPurpose("");
+        }
     }
   };
 
@@ -304,7 +313,16 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
               onClick={handleTakePhotoClick}
               disabled={!location || isLoading}
             >
-              <Camera className="mr-4 h-8 w-8" /> {buttonText}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-4 h-8 w-8 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Camera className="mr-4 h-8 w-8" /> {buttonText}
+                </>
+              )}
             </Button>
           )}
         </CardContent>
