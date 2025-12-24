@@ -41,12 +41,14 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   const isCheckedIn = !!activeRecord;
 
   const hasCheckedOutToday = useMemo(() => {
-    if (isCheckedIn) return false; // Still in session
-    const lastRecord = historyRecords.find(r => r.status === 'Checked Out' && r.checkOutTime);
-    if (lastRecord && lastRecord.checkOutTime) {
-      return isToday(parseISO(lastRecord.checkOutTime));
-    }
-    return false;
+    // If user is currently checked in, they haven't completed a session today.
+    if (isCheckedIn) return false;
+    // Search through all history records to see if any of them is a completed session from today.
+    return historyRecords.some(record => 
+        record.status === 'Checked Out' && 
+        record.checkOutTime && 
+        isToday(parseISO(record.checkOutTime))
+    );
   }, [historyRecords, isCheckedIn]);
 
 
@@ -179,7 +181,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         setIsPurposeDialogOpen(true);
         return;
     }
-
+    
     setIsLoading(true);
     setIsPurposeDialogOpen(false);
 
@@ -210,14 +212,13 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       toast({ variant: "destructive", title: "Terjadi Kesalahan", description: "Gagal menyimpan data." });
       setIsLoading(false);
     } finally {
+        // Only reset for the check-in flow manually. Check-out resets fully.
         if (!isCheckedIn) {
-           // We only need to manually stop loading for check-in. 
-           // Check-out will cause a full reset.
-           setIsLoading(false);
            setView('main');
            setPhotoPreview(null);
            setPurpose("");
         }
+        setIsLoading(false);
     }
   };
 
@@ -456,7 +457,11 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
               </span>
             </>
           ) : (
-            <span className="text-muted-foreground">Anda belum melakukan Cek In hari ini.</span>
+             hasCheckedOutToday ? (
+                <span className="text-green-700">Sesi lembur hari ini telah selesai.</span>
+            ) : (
+                <span className="text-muted-foreground">Anda belum melakukan Cek In hari ini.</span>
+            )
           )}
         </CardContent>
       </Card>
