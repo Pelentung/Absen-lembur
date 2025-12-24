@@ -12,7 +12,27 @@ export function useCollection<T>(
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const isRealtime = options?.isRealtime ?? true;
+  const isRealtime = options?.isRealtime ?? false; // Defaulting to false
+
+  const fetchData = useCallback(async () => {
+    if (!q) {
+      setLoading(false);
+      setData([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const snapshot = await getDocs(q);
+      const docs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as T));
+      setData(docs);
+    } catch (err) {
+      console.error("getDocs error:", err);
+      setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  }, [q]);
 
   useEffect(() => {
     if (!q) {
@@ -37,21 +57,9 @@ export function useCollection<T>(
       );
       return () => unsubscribe();
     } else {
-      const fetchData = async () => {
-        try {
-          const snapshot = await getDocs(q);
-          const docs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as T));
-          setData(docs);
-        } catch (err) {
-          console.error("getDocs error:", err);
-          setError(err as Error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchData();
+        fetchData();
     }
-  }, [q, isRealtime]);
+  }, [q, isRealtime, fetchData]);
 
-  return { data, loading, error };
+  return { data, loading, error, refetch: fetchData };
 }

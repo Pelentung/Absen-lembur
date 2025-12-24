@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDashboard } from "./UserDashboard";
@@ -11,7 +11,7 @@ import { AdminReport } from "./AdminReport";
 import { Logo } from "./Logo";
 import type { OvertimeRecord, UserRole, UserProfile, VerificationStatus } from "@/lib/types";
 import { useCollection, useUser, useAuth } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs, Query } from "firebase/firestore";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useFirestore } from "@/firebase";
 import { Button } from "../ui/button";
@@ -28,25 +28,44 @@ export function HomePage({ userRole }: HomePageProps) {
   const auth = useAuth();
   const router = useRouter();
 
-  const recordsQuery = useMemo(() => {
-    if (!db || !user?.uid) return null; // Wait for user to be available
-    
-    if (userRole === 'Admin') {
-      // Admin gets all records, ordered by creation date
-      return query(collection(db, 'overtimeRecords'));
-    }
-    // Regular user only gets their own records
-    return query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
+  const [records, setRecords] = useState<OvertimeRecord[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [recordsLoading, setRecordsLoading] = useState(true);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [loadingAction, setLoadingAction] = useState(false);
+
+  const refetchRecords = useCallback(async () => {
+    if (!db || !user?.uid) return;
+
+    setRecordsLoading(true);
+    const recordsQuery = userRole === 'Admin'
+      ? query(collection(db, 'overtimeRecords'))
+      : query(collection(db, 'overtimeRecords'), where('employeeId', '==', user.uid));
+      
+    const snapshot = await getDocs(recordsQuery);
+    const fetchedRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OvertimeRecord));
+    setRecords(fetchedRecords);
+    setRecordsLoading(false);
   }, [db, user?.uid, userRole]);
 
-  const usersQuery = useMemo(() => {
-    if (!db || userRole !== 'Admin') return null; // Only admins fetch all users
-    return query(collection(db, 'users'));
+  const refetchUsers = useCallback(async () => {
+    if (!db || userRole !== 'Admin') {
+      setUsers([]);
+      setUsersLoading(false);
+      return;
+    };
+    setUsersLoading(true);
+    const usersQuery = query(collection(db, 'users'));
+    const snapshot = await getDocs(usersQuery);
+    const fetchedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+    setUsers(fetchedUsers);
+    setUsersLoading(false);
   }, [db, userRole]);
 
-  const { data: records, loading: recordsLoading } = useCollection<OvertimeRecord>(recordsQuery, { isRealtime: true });
-  const { data: usersData, loading: usersLoading } = useCollection<UserProfile>(usersQuery, { isRealtime: true });
-  const users = usersData ?? [];
+  useEffect(() => {
+    refetchRecords();
+    refetchUsers();
+  }, [refetchRecords, refetchUsers]);
 
 
   const sortedRecords = useMemo(() => {
@@ -97,14 +116,15 @@ export function HomePage({ userRole }: HomePageProps) {
   const handleCheckIn = useCallback(async (newRecordData: Omit<OvertimeRecord, 'id' | 'status' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation' | 'verificationStatus' | 'createdAt' | 'employeeId' | 'employeeName'>) => {
     if (!db || !user || !userName) return;
     
+    setLoadingAction(true);
     const createdAt = new Date().toISOString();
-    const temporaryPhotoForUpload = newRecordData.checkInPhoto; // The data URI
+    const temporaryPhotoForUpload = newRecordData.checkInPhoto;
     
     const initialRecord = {
       ...newRecordData,
       employeeId: user.uid,
       employeeName: userName,
-      checkInPhoto: null, // Firestore will store null initially
+      checkInPhoto: null,
       status: 'Checked In' as const,
       checkOutTime: null,
       checkOutPhoto: null,
@@ -119,16 +139,20 @@ export function HomePage({ userRole }: HomePageProps) {
       if (temporaryPhotoForUpload) {
         uploadPhotoAndUpdateRecord(temporaryPhotoForUpload, docRef.id, 'checkIn');
       }
+      await refetchRecords();
     } catch (error) {
       console.error("Error during check-in:", error);
-      throw error; // Re-throw to be caught by the UI
+      throw error;
+    } finally {
+      setLoadingAction(false);
     }
 
-  }, [db, user, userName, uploadPhotoAndUpdateRecord]);
+  }, [db, user, userName, uploadPhotoAndUpdateRecord, refetchRecords]);
 
   const handleCheckOut = useCallback(async ({ id, checkOutTime, checkOutPhoto, checkOutLocation }: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => {
     if (!db || !checkOutTime || !checkOutPhoto) return;
 
+    setLoadingAction(true);
     const recordRef = doc(db, 'overtimeRecords', id);
     
     try {
@@ -136,16 +160,19 @@ export function HomePage({ userRole }: HomePageProps) {
         status: 'Checked Out',
         checkOutTime: new Date(checkOutTime).toISOString(),
         checkOutLocation,
-        checkOutPhoto: null, // Set to null initially in Firestore
+        checkOutPhoto: null,
       });
 
       uploadPhotoAndUpdateRecord(checkOutPhoto, id, 'checkOut');
+      await refetchRecords();
     } catch (error) {
       console.error("Error during check-out:", error);
-      throw error; // Re-throw to be caught by the UI
+      throw error;
+    } finally {
+      setLoadingAction(false);
     }
 
-  }, [db, uploadPhotoAndUpdateRecord]);
+  }, [db, uploadPhotoAndUpdateRecord, refetchRecords]);
 
 
   const handleUpdateUser = useCallback(async (updatedUser: Partial<UserProfile> & { id: string }) => {
@@ -153,14 +180,15 @@ export function HomePage({ userRole }: HomePageProps) {
     const { id, ...dataToUpdate } = updatedUser;
     const userRef = doc(db, 'users', id);
     await updateDoc(userRef, dataToUpdate);
-  }, [db]);
+    await refetchUsers();
+  }, [db, refetchUsers]);
 
   const handleDeleteUser = useCallback(async (userId: string) => {
     if (!db) return;
-    // Note: This only deletes the Firestore document, not the Firebase Auth user.
     const userRef = doc(db, 'users', userId);
     await deleteDoc(userRef);
-  }, [db]);
+    await refetchUsers();
+  }, [db, refetchUsers]);
   
   const handleUpdateOvertimeStatus = useCallback(async (recordId: string, status: VerificationStatus, notes?: string) => {
     if (!db) return;
@@ -169,7 +197,8 @@ export function HomePage({ userRole }: HomePageProps) {
         verificationStatus: status,
         verificationNotes: notes || ""
     });
-  }, [db]);
+    await refetchRecords();
+  }, [db, refetchRecords]);
 
 
   const handleLogout = async () => {
@@ -218,6 +247,7 @@ export function HomePage({ userRole }: HomePageProps) {
               onCheckIn={handleCheckIn}
               onCheckOut={handleCheckOut}
               userName={userName ?? 'Pengguna'}
+              isLoading={recordsLoading || loadingAction}
             />
           </TabsContent>
           {userRole === 'Admin' && (

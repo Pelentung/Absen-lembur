@@ -22,13 +22,14 @@ type UserDashboardProps = {
   onCheckIn: (record: Pick<OvertimeRecord, 'checkInTime' | 'checkInPhoto' | 'checkInLocation' | 'purpose'>) => Promise<void>;
   onCheckOut: (record: Pick<OvertimeRecord, 'id' | 'checkOutTime' | 'checkOutPhoto' | 'checkOutLocation'>) => Promise<void>;
   userName: string;
+  isLoading: boolean;
 };
 
-export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheckOut, userName }: UserDashboardProps) {
+export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheckOut, userName, isLoading }: UserDashboardProps) {
   const [view, setView] = useState<'main' | 'camera' | 'preview'>('main');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [location, setLocation] = useState<GeoLocation | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isPurposeDialogOpen, setIsPurposeDialogOpen] = useState(false);
   const [purpose, setPurpose] = useState("");
@@ -41,15 +42,12 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   const isCheckedIn = !!activeRecord;
 
   const hasCheckedOutToday = useMemo(() => {
-    // If user is currently checked in, they haven't completed a session today.
-    if (isCheckedIn) return false;
-    // Search through all history records to see if any of them is a completed session from today.
     return historyRecords.some(record => 
         record.status === 'Checked Out' && 
         record.checkOutTime && 
         isToday(parseISO(record.checkOutTime))
     );
-  }, [historyRecords, isCheckedIn]);
+  }, [historyRecords]);
 
 
   useEffect(() => {
@@ -118,7 +116,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     }
   }, [toast]);
 
-  const handleTakePhotoClick = () => {
+  const handleMainActionClick = () => {
     setView('camera');
   };
   
@@ -146,9 +144,9 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
     }
   };
 
-  const resetState = () => {
+  const resetActionState = () => {
     setPhotoPreview(null);
-    setIsLoading(false);
+    setIsActionLoading(false);
     setPurpose("");
     setIsPurposeDialogOpen(false);
     setView('main');
@@ -182,7 +180,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
         return;
     }
     
-    setIsLoading(true);
+    setIsActionLoading(true);
     setIsPurposeDialogOpen(false);
 
     try {
@@ -196,7 +194,6 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           checkOutLocation: location,
         });
         toast({ title: "Sukses Cek Out", description: `Anda berhasil cek out pada ${new Date(now).toLocaleTimeString()}` });
-        resetState();
       } else {
         await onCheckIn({
           checkInTime: now,
@@ -205,20 +202,12 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           purpose: purpose,
         });
         toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${new Date(now).toLocaleTimeString()}` });
-        // Don't reset state here, allow the parent component's state to trigger the re-render to "Check Out"
       }
     } catch (error) {
       console.error("Submit error:", error);
       toast({ variant: "destructive", title: "Terjadi Kesalahan", description: "Gagal menyimpan data." });
-      setIsLoading(false);
     } finally {
-        // Only reset for the check-in flow manually. Check-out resets fully.
-        if (!isCheckedIn) {
-           setView('main');
-           setPhotoPreview(null);
-           setPurpose("");
-        }
-        setIsLoading(false);
+        resetActionState();
     }
   };
 
@@ -255,9 +244,9 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
             <Button variant="outline" onClick={() => setView('camera')}>Ambil Ulang Foto</Button>
           </CardContent>
           <CardFooter>
-            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirm} disabled={isLoading || !location}>
-              {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
-              {isLoading ? "Menyimpan..." : confirmButtonText}
+            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleConfirm} disabled={isActionLoading || !location}>
+              {isActionLoading ? <Loader2 className="animate-spin mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
+              {isActionLoading ? "Menyimpan..." : confirmButtonText}
             </Button>
           </CardFooter>
         </Card>
@@ -291,41 +280,49 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   }
 
   const renderMainView = () => {
-    const actionTitle = isCheckedIn ? "Selesaikan Sesi Lembur" : "Mulai Sesi Lembur";
-    const actionDescription = isCheckedIn ? "Klik untuk melakukan check-out." : "Klik untuk melakukan check-in.";
+    if (isLoading) {
+      return (
+        <Card>
+          <CardContent className="pt-6 flex items-center justify-center h-40">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+      )
+    }
+
+    if (hasCheckedOutToday) {
+      return (
+         <Card className="text-center">
+            <CardContent className="pt-6 flex flex-col items-center justify-center h-40 gap-4 text-green-700 bg-green-50 rounded-md">
+                <CheckCircle className="h-10 w-10" />
+                <p className="font-medium text-lg">Anda sudah menyelesaikan sesi lembur hari ini.</p>
+            </CardContent>
+         </Card>
+      )
+    }
+    
     const buttonText = isCheckedIn ? "Check Out" : "Check In";
     
     return (
        <Card className="text-center">
         <CardHeader>
-          <CardTitle>{actionTitle}</CardTitle>
-          <CardDescription>{actionDescription}</CardDescription>
+          <CardTitle>Aksi Absensi</CardTitle>
         </CardHeader>
         <CardContent>
-          {hasCheckedOutToday ? (
-             <div className="flex flex-col items-center justify-center h-24 gap-4 text-green-700 bg-green-50 rounded-md">
-                <CheckCircle className="h-8 w-8" />
-                <p className="font-medium">Anda sudah menyelesaikan sesi lembur hari ini.</p>
-             </div>
-          ) : (
             <Button
               size="lg"
               className="w-full h-24 text-lg"
-              onClick={handleTakePhotoClick}
-              disabled={!location || isLoading}
+              onClick={handleMainActionClick}
+              disabled={!location || isActionLoading}
             >
-              {isLoading ? (
-                <>
+              {isActionLoading ? (
                   <Loader2 className="mr-4 h-8 w-8 animate-spin" />
-                  Menyimpan...
-                </>
               ) : (
                 <>
                   <Camera className="mr-4 h-8 w-8" /> {buttonText}
                 </>
               )}
             </Button>
-          )}
         </CardContent>
          <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
@@ -491,8 +488,8 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSubmit} disabled={isLoading || !purpose}>
-              {isLoading ? <Loader2 className="animate-spin" /> : "Kirim & Cek In"}
+            <Button onClick={handleSubmit} disabled={isActionLoading || !purpose}>
+              {isActionLoading ? <Loader2 className="animate-spin" /> : "Kirim & Cek In"}
             </Button>
           </DialogFooter>
         </DialogContent>
