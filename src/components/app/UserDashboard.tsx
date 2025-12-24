@@ -3,12 +3,11 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { format, formatDistance, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
-import { Camera, MapPin, Clock, Loader2, ArrowLeft, Video, Zap, ThumbsUp, ThumbsDown, Hourglass, History, FileUp, ShieldAlert, CheckCircle } from "lucide-react";
+import { Camera, MapPin, Clock, Loader2, ArrowLeft, Zap, ThumbsUp, ThumbsDown, Hourglass, History, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -39,7 +38,11 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
-  const isCheckedIn = activeRecord?.status === 'Checked In';
+  const isCheckedIn = !!activeRecord;
+  const lastRecord = historyRecords[0];
+  // This state is true only immediately after a checkout, before a page refresh.
+  const justCheckedOut = lastRecord && lastRecord.status === 'Checked Out' && !activeRecord;
+
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -184,6 +187,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           checkOutLocation: location,
         });
         toast({ title: "Sukses Cek Out", description: `Anda berhasil cek out pada ${new Date(now).toLocaleTimeString()}` });
+        // Don't reset state after checkout, so the "Session Complete" card can be shown.
       } else {
         await onCheckIn({
           checkInTime: now,
@@ -192,10 +196,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
           purpose: purpose,
         });
         toast({ title: "Sukses Cek In", description: `Anda berhasil cek in pada ${new Date(now).toLocaleTimeString()}` });
-      }
-      // Do not reset state for check-out to show the finished message
-      if (!isCheckedIn) {
-        resetState();
+        resetState(); // Reset only after a successful check-in
       }
     } catch (error) {
       console.error("Submit error:", error);
@@ -271,12 +272,9 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       </Card>
     );
   }
-  
-  const lastRecord = historyRecords[0];
-  const justCheckedOut = lastRecord && lastRecord.status === 'Checked Out' && !activeRecord;
-
 
   const renderActionCard = () => {
+    // 1. Priority: Show the success message immediately after checking out.
     if (justCheckedOut) {
       return (
         <Card className="text-center bg-green-50 border-green-200">
@@ -292,26 +290,47 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
       );
     }
   
-    const title = isCheckedIn ? "Cek Out Lembur" : "Cek In Lembur";
-    const buttonText = isCheckedIn ? "Ambil Foto Cek Out" : "Ambil Foto Cek In";
-
+    // 2. If already in a session, show the checkout flow.
+    // This now correctly handles the state where `isCheckedIn` is true.
+    if (isCheckedIn) {
+      if (photoPreview) return renderPreview();
+      if (showCamera) return renderCameraView();
+  
+      return (
+        <Card className="text-center">
+          <CardHeader>
+            <CardTitle>Cek Out Lembur</CardTitle>
+            <CardDescription>Selesaikan sesi lembur Anda dengan mengambil foto.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button size="lg" className="w-full h-24 text-lg" onClick={handleTakePhotoClick} disabled={!location}>
+              <Camera className="mr-4 h-8 w-8" /> Ambil Foto Cek Out
+            </Button>
+          </CardContent>
+          <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              {location ? `Koordinat: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}` : "Mencari lokasi..."}
+            </div>
+            {locationError && <p className="text-destructive text-xs">{locationError}</p>}
+          </CardFooter>
+        </Card>
+      );
+    }
+  
+    // 3. Default: If not checked in and not just checked out, show the check-in flow.
     if (photoPreview) return renderPreview();
     if (showCamera) return renderCameraView();
-
-
+  
     return (
       <Card className="text-center">
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>
-            {isCheckedIn
-              ? "Selesaikan sesi lembur Anda dengan mengambil foto."
-              : "Mulai sesi lembur Anda dengan mengambil foto selfie."}
-          </CardDescription>
+          <CardTitle>Cek In Lembur</CardTitle>
+          <CardDescription>Mulai sesi lembur Anda dengan mengambil foto selfie.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button size="lg" className="w-full h-24 text-lg" onClick={handleTakePhotoClick} disabled={!location}>
-            <Camera className="mr-4 h-8 w-8" /> {buttonText}
+            <Camera className="mr-4 h-8 w-8" /> Ambil Foto Cek In
           </Button>
         </CardContent>
         <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
@@ -381,7 +400,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
                                                  <p><strong>Keterangan:</strong> {record.purpose}</p>
                                                  <p>
                                                     <strong>Durasi:</strong> {record.checkInTime && record.checkOutTime ? 
-                                                      `${formatDistanceToNow(parseISO(record.checkOutTime), { locale: id, addSuffix: false, includeSeconds: true })} (dari ${format(parseISO(record.checkInTime), 'HH:mm')} s/d ${format(parseISO(record.checkOutTime), 'HH:mm')})`
+                                                      `${formatDistance(parseISO(record.checkOutTime), parseISO(record.checkInTime), { locale: id })} (dari ${format(parseISO(record.checkInTime), 'HH:mm')} s/d ${format(parseISO(record.checkOutTime), 'HH:mm')})`
                                                       : 'N/A'}
                                                   </p>
                                                 {record.verificationNotes && <p className="text-muted-foreground italic"><strong>Catatan Admin:</strong> {record.verificationNotes}</p>}
@@ -424,7 +443,7 @@ export function UserDashboard({ activeRecord, historyRecords, onCheckIn, onCheck
               <span>
                 Sudah Cek In pada{" "}
                 <span className="font-bold text-primary">
-                  {new Date(activeRecord.checkInTime).toLocaleTimeString()}
+                  {new Date(activeRecord.checkInTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 {activeRecord?.purpose && (
                     <div className="text-sm text-muted-foreground">Keterangan: {activeRecord.purpose}</div>

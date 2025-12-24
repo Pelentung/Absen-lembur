@@ -23,14 +23,14 @@ export type OvertimeRecord = {
   id: string;
   employeeId: string;
   employeeName: string;
-  checkInTime: string | null; // Changed to string for Firestore compatibility
-  checkOutTime: string | null; // Changed to string for Firestore compatibility
+  checkInTime: string; // Should always be a string now
+  checkOutTime: string | null; // Null until checked out
   checkInPhoto: string | null;
   checkOutPhoto: string | null;
   checkInLocation: GeoLocation | null;
   checkOutLocation: GeoLocation | null;
-  status: 'Checked In' | 'Checked Out' | 'Pending';
-  purpose?: string; // Overtime purpose
+  status: 'Checked In' | 'Checked Out';
+  purpose: string; // Should always exist on creation
   verificationStatus: VerificationStatus;
   verificationNotes?: string;
   createdAt: string; // Added for sorting
